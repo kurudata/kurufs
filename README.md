@@ -2,9 +2,11 @@
 
 ## How to Build
 
-1. go get github.com/juicedata/juicefs.git
+```bash
+go get github.com/juicedata/juicefs.git
+```
 
-## Develping on MacOS
+## Developing on macOS
 
 1. Install [FUSE for macOS](https://osxfuse.github.io/)
 1. Install redis-server
