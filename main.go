@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -111,6 +112,17 @@ func fixObjectSize(s int) int {
 }
 
 func main() {
+	if runtime.GOOS == "darwin" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			logger.Errorf("%v", err)
+			return
+		}
+		*mountpoint = path.Join(homeDir, "jfs")
+		*localDir = path.Join(homeDir, ".juicefs", "local")
+		*cacheDir = path.Join(homeDir, ".juiefs", "cache")
+	}
+
 	flag.Parse()
 	if *version {
 		fmt.Println("JuiceFS CE", Build())
