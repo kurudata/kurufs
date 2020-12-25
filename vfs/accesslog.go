@@ -19,17 +19,17 @@ func init() {
 	readers = make(map[uint64]chan []byte)
 }
 
-func oplog(ctx Context, format string, args ...interface{}) {
+func logit(ctx Context, format string, args ...interface{}) {
+	used := ctx.Duration()
 	readerLock.Lock()
 	defer readerLock.Unlock()
-	if len(readers) == 0 {
+	if len(readers) == 0 || used > time.Second*10 {
 		return
 	}
 
 	cmd := fmt.Sprintf(format, args...)
 	t := time.Now()
 	ts := t.Format("2006.01.02 15:04:05.000000")
-	used := ctx.Duration()
 	cmd += fmt.Sprintf(" <%.6f>", used.Seconds())
 	if ctx.Pid() != 0 && used > time.Second*10 {
 		logger.Infof("slow operation: %s", cmd)
@@ -44,20 +44,20 @@ func oplog(ctx Context, format string, args ...interface{}) {
 	}
 }
 
-func oplogNewHandle(fh uint64) uint64 {
+func openAccessLog(fh uint64) uint64 {
 	readerLock.Lock()
 	defer readerLock.Unlock()
 	readers[fh] = make(chan []byte, 1024)
 	return fh
 }
 
-func oplogReleaseHandle(fh uint64) {
+func closeAccessLog(fh uint64) {
 	readerLock.Lock()
 	defer readerLock.Unlock()
 	delete(readers, fh)
 }
 
-func oplogRead(fh uint64, buf []byte) int {
+func readAccessLog(fh uint64, buf []byte) int {
 	readerLock.Lock()
 	buffer, ok := readers[fh]
 	readerLock.Unlock()

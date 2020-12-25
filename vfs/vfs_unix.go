@@ -39,7 +39,7 @@ func StatFS(ctx Context, ino Ino) (st *Statfs, err int) {
 	st.Bavail = bavail
 	st.Files = iused + iavail
 	st.Favail = iavail
-	oplog(ctx, "statfs (%d): OK (%d,%d,%d,%d)", ino, totalspace-availspace, availspace, iused, iavail)
+	logit(ctx, "statfs (%d): OK (%d,%d,%d,%d)", ino, totalspace-availspace, availspace, iused, iavail)
 	return
 }
 
@@ -64,7 +64,7 @@ func accessTest(attr *Attr, mmode uint16, uid uint32, gid uint32) syscall.Errno 
 }
 
 func Access(ctx Context, ino Ino, mask int) (err syscall.Errno) {
-	defer func() { oplog(ctx, "access (%d,0x%X): %s", ino, mask, strerr(err)) }()
+	defer func() { logit(ctx, "access (%d,0x%X): %s", ino, mask, strerr(err)) }()
 	var mmode uint16
 	if mask&unix.R_OK != 0 {
 		mmode |= MODE_MASK_R
@@ -115,7 +115,7 @@ func setattrStr(set int, mode, uid, gid uint32, atime, mtime int64, size uint64)
 func SetAttr(ctx Context, ino Ino, set int, opened uint8, mode, uid, gid uint32, atime, mtime int64, atimensec, mtimensec uint32, size uint64) (entry *meta.Entry, err syscall.Errno) {
 	str := setattrStr(set, mode, uid, gid, atime, mtime, size)
 	defer func() {
-		oplog(ctx, "setattr (%d,0x%X,[%s]): %s%s", ino, set, str, strerr(err), (*Entry)(entry))
+		logit(ctx, "setattr (%d,0x%X,[%s]): %s%s", ino, set, str, strerr(err), (*Entry)(entry))
 	}()
 	if IsSpecialNode(ino) {
 		n := getInternalNode(ino)

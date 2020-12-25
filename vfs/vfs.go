@@ -50,7 +50,7 @@ var (
 
 func Lookup(ctx Context, parent Ino, name string) (entry *meta.Entry, err syscall.Errno) {
 	defer func() {
-		oplog(ctx, "lookup (%d,%s): %s%s", parent, name, strerr(err), (*Entry)(entry))
+		logit(ctx, "lookup (%d,%s): %s%s", parent, name, strerr(err), (*Entry)(entry))
 	}()
 	nleng := len(name)
 	if nleng > NAME_MAX {
@@ -87,7 +87,7 @@ func Lookup(ctx Context, parent Ino, name string) (entry *meta.Entry, err syscal
 }
 
 func GetAttr(ctx Context, ino Ino, opened uint8) (entry *meta.Entry, err syscall.Errno) {
-	defer func() { oplog(ctx, "getattr (%d): %s%s", ino, strerr(err), (*Entry)(entry)) }()
+	defer func() { logit(ctx, "getattr (%d): %s%s", ino, strerr(err), (*Entry)(entry)) }()
 	if IsSpecialNode(ino) && getInternalNode(ino) != nil {
 		n := getInternalNode(ino)
 		entry = &meta.Entry{Inode: n.inode, Attr: n.attr}
@@ -132,7 +132,7 @@ func get_filetype(mode uint16) uint8 {
 func Mknod(ctx Context, parent Ino, name string, mode uint16, cumask uint16, rdev uint32) (entry *meta.Entry, err syscall.Errno) {
 	nleng := uint8(len(name))
 	defer func() {
-		oplog(ctx, "mknod (%d,%s,%s:0%04o,0x%08X): %s%s", parent, name, smode(mode), mode, rdev, strerr(err), (*Entry)(entry))
+		logit(ctx, "mknod (%d,%s,%s:0%04o,0x%08X): %s%s", parent, name, smode(mode), mode, rdev, strerr(err), (*Entry)(entry))
 	}()
 	if parent == ROOT_ID && isSpecialName(name) {
 		err = syscall.EACCES
@@ -158,7 +158,7 @@ func Mknod(ctx Context, parent Ino, name string, mode uint16, cumask uint16, rde
 }
 
 func Unlink(ctx Context, parent Ino, name string) (err syscall.Errno) {
-	defer func() { oplog(ctx, "unlink (%d,%s): %s", parent, name, strerr(err)) }()
+	defer func() { logit(ctx, "unlink (%d,%s): %s", parent, name, strerr(err)) }()
 	nleng := uint8(len(name))
 	if parent == ROOT_ID && isSpecialName(name) {
 		err = syscall.EACCES
@@ -174,11 +174,11 @@ func Unlink(ctx Context, parent Ino, name string) (err syscall.Errno) {
 
 func Mkdir(ctx Context, parent Ino, name string, mode uint16, cumask uint16) (entry *meta.Entry, err syscall.Errno) {
 	defer func() {
-		oplog(ctx, "mkdir (%d,%s,%s:0%04o): %s%s", parent, name, smode(mode), mode, strerr(err), (*Entry)(entry))
+		logit(ctx, "mkdir (%d,%s,%s:0%04o): %s%s", parent, name, smode(mode), mode, strerr(err), (*Entry)(entry))
 	}()
 	nleng := uint8(len(name))
 	if parent == ROOT_ID && isSpecialName(name) {
-		err = syscall.EACCES
+		err = syscall.EEXIST
 		return
 	}
 	if nleng > NAME_MAX {
@@ -197,7 +197,7 @@ func Mkdir(ctx Context, parent Ino, name string, mode uint16, cumask uint16) (en
 
 func Rmdir(ctx Context, parent Ino, name string) (err syscall.Errno) {
 	nleng := uint8(len(name))
-	defer func() { oplog(ctx, "rmdir (%d,%s): %s", parent, name, strerr(err)) }()
+	defer func() { logit(ctx, "rmdir (%d,%s): %s", parent, name, strerr(err)) }()
 	if parent == ROOT_ID && isSpecialName(name) {
 		err = syscall.EACCES
 		return
@@ -213,10 +213,10 @@ func Rmdir(ctx Context, parent Ino, name string) (err syscall.Errno) {
 func Symlink(ctx Context, path string, parent Ino, name string) (entry *meta.Entry, err syscall.Errno) {
 	nleng := uint8(len(name))
 	defer func() {
-		oplog(ctx, "symlink (%d,%s,%s): %s%s", parent, name, path, strerr(err), (*Entry)(entry))
+		logit(ctx, "symlink (%d,%s,%s): %s%s", parent, name, path, strerr(err), (*Entry)(entry))
 	}()
 	if parent == ROOT_ID && isSpecialName(name) {
-		err = syscall.EACCES
+		err = syscall.EEXIST
 		return
 	}
 	if nleng > NAME_MAX || (len(path)+1) > MAX_SYMLINK {
@@ -234,13 +234,13 @@ func Symlink(ctx Context, path string, parent Ino, name string) (entry *meta.Ent
 }
 
 func Readlink(ctx Context, ino Ino) (path []byte, err syscall.Errno) {
-	defer func() { oplog(ctx, "readlink (%d): %s (%s)", ino, strerr(err), string(path)) }()
+	defer func() { logit(ctx, "readlink (%d): %s (%s)", ino, strerr(err), string(path)) }()
 	err = m.ReadLink(ctx, ino, &path)
 	return
 }
 
 func Rename(ctx Context, parent Ino, name string, newparent Ino, newname string) (err syscall.Errno) {
-	defer func() { oplog(ctx, "rename (%d,%s,%d,%s): %s", parent, name, newparent, newname, strerr(err)) }()
+	defer func() { logit(ctx, "rename (%d,%s,%d,%s): %s", parent, name, newparent, newname, strerr(err)) }()
 	if parent == ROOT_ID && isSpecialName(name) {
 		err = syscall.EACCES
 		return
@@ -260,7 +260,7 @@ func Rename(ctx Context, parent Ino, name string, newparent Ino, newname string)
 
 func Link(ctx Context, ino Ino, newparent Ino, newname string) (entry *meta.Entry, err syscall.Errno) {
 	defer func() {
-		oplog(ctx, "link (%d,%d,%s): %s%s", ino, newparent, newname, strerr(err), (*Entry)(entry))
+		logit(ctx, "link (%d,%d,%s): %s%s", ino, newparent, newname, strerr(err), (*Entry)(entry))
 	}()
 	if IsSpecialNode(ino) {
 		err = syscall.EACCES
@@ -284,7 +284,7 @@ func Link(ctx Context, ino Ino, newparent Ino, newname string) (entry *meta.Entr
 }
 
 func Opendir(ctx Context, ino Ino) (fh uint64, err syscall.Errno) {
-	defer func() { oplog(ctx, "opendir (%d): %s [fh:%d]", ino, strerr(err), fh) }()
+	defer func() { logit(ctx, "opendir (%d): %s [fh:%d]", ino, strerr(err), fh) }()
 	if IsSpecialNode(ino) {
 		err = syscall.ENOTDIR
 		return
@@ -305,7 +305,7 @@ func UpdateEntry(e *meta.Entry) {
 }
 
 func Readdir(ctx Context, ino Ino, size uint32, off int, fh uint64, plus bool) (entries []*meta.Entry, err syscall.Errno) {
-	defer func() { oplog(ctx, "readdir (%d,%d,%d): %s (%d)", ino, size, off, strerr(err), len(entries)) }()
+	defer func() { logit(ctx, "readdir (%d,%d,%d): %s (%d)", ino, size, off, strerr(err), len(entries)) }()
 	h := findHandle(ino, fh)
 	if h == nil {
 		err = syscall.EBADF
@@ -324,6 +324,16 @@ func Readdir(ctx Context, ino Ino, size uint32, off int, fh uint64, plus bool) (
 			return
 		}
 		h.children = inodes
+		if ino == ROOT_ID {
+			// add internal nodes
+			for _, node := range internalNodes {
+				h.children = append(h.children, &meta.Entry{
+					Inode: node.inode,
+					Name:  []byte(node.name),
+					Attr:  node.attr,
+				})
+			}
+		}
 	}
 	if off < len(h.children) {
 		entries = h.children[off:]
@@ -337,16 +347,16 @@ func Releasedir(ctx Context, ino Ino, fh uint64) int {
 		return 0
 	}
 	ReleaseHandler(ino, fh)
-	oplog(ctx, "releasedir (%d): OK", ino)
+	logit(ctx, "releasedir (%d): OK", ino)
 	return 0
 }
 
 func Create(ctx Context, parent Ino, name string, mode uint16, cumask uint16, flags uint32) (entry *meta.Entry, fh uint64, err syscall.Errno) {
 	defer func() {
-		oplog(ctx, "create (%d,%s,%s:0%04o): %s%s [fh:%d]", parent, name, smode(mode), mode, strerr(err), (*Entry)(entry), fh)
+		logit(ctx, "create (%d,%s,%s:0%04o): %s%s [fh:%d]", parent, name, smode(mode), mode, strerr(err), (*Entry)(entry), fh)
 	}()
 	if parent == ROOT_ID && isSpecialName(name) {
-		err = syscall.EACCES
+		err = syscall.EEXIST
 		return
 	}
 	if len(name) > NAME_MAX {
@@ -382,9 +392,9 @@ func Open(ctx Context, ino Ino, flags uint32) (entry *meta.Entry, fh uint64, err
 	var attr = &Attr{}
 	defer func() {
 		if entry != nil {
-			oplog(ctx, "open (%d): %s [fh:%d]", ino, strerr(err), fh)
+			logit(ctx, "open (%d): %s [fh:%d]", ino, strerr(err), fh)
 		} else {
-			oplog(ctx, "open (%d): %s", ino, strerr(err))
+			logit(ctx, "open (%d): %s", ino, strerr(err))
 		}
 	}()
 	if IsSpecialNode(ino) {
@@ -395,8 +405,8 @@ func Open(ctx Context, ino Ino, flags uint32) (entry *meta.Entry, fh uint64, err
 		h := newHandle(ino)
 		fh = h.fh
 		switch ino {
-		case oplogInode:
-			oplogNewHandle(fh)
+		case logInode:
+			openAccessLog(fh)
 		}
 		n := getInternalNode(ino)
 		entry = &meta.Entry{Inode: ino, Attr: n.attr}
@@ -430,7 +440,7 @@ func Open(ctx Context, ino Ino, flags uint32) (entry *meta.Entry, fh uint64, err
 }
 
 func Truncate(ctx Context, ino Ino, size int64, opened uint8, attr *Attr) (err syscall.Errno) {
-	defer func() { oplog(ctx, "truncate (%d,%d): %s", ino, size, strerr(err)) }()
+	defer func() { logit(ctx, "truncate (%d,%d): %s", ino, size, strerr(err)) }()
 	if IsSpecialNode(ino) {
 		err = syscall.EPERM
 		return
@@ -507,10 +517,10 @@ func ReleaseHandler(ino Ino, fh uint64) {
 }
 
 func Release(ctx Context, ino Ino, fh uint64) (err syscall.Errno) {
-	defer func() { oplog(ctx, "release (%d): %s", ino, strerr(err)) }()
+	defer func() { logit(ctx, "release (%d): %s", ino, strerr(err)) }()
 	if IsSpecialNode(ino) {
-		if ino == oplogInode {
-			oplogReleaseHandle(fh)
+		if ino == logInode {
+			closeAccessLog(fh)
 		}
 		releaseHandle(ino, fh)
 		return
@@ -541,8 +551,8 @@ func Release(ctx Context, ino Ino, fh uint64) (err syscall.Errno) {
 func Read(ctx Context, ino Ino, buf []byte, off uint64, fh uint64) (n int, err syscall.Errno) {
 	size := uint32(len(buf))
 	if IsSpecialNode(ino) {
-		if ino == oplogInode {
-			n = oplogRead(fh, buf)
+		if ino == logInode {
+			n = readAccessLog(fh, buf)
 		} else {
 			h := findHandle(ino, fh)
 			if h == nil {
@@ -557,13 +567,13 @@ func Read(ctx Context, ino Ino, buf []byte, off uint64, fh uint64) (n int, err s
 				}
 				n = copy(buf, data)
 			}
-			oplog(ctx, "read (%d,%d,%d): OK (%d)", ino, size, off, n)
+			logit(ctx, "read (%d,%d,%d): OK (%d)", ino, size, off, n)
 		}
 		return
 	}
 
 	defer func() {
-		oplog(ctx, "read (%d,%d,%d): %s (%d)", ino, size, off, strerr(err), n)
+		logit(ctx, "read (%d,%d,%d): %s (%d)", ino, size, off, strerr(err), n)
 	}()
 	h := findHandle(ino, fh)
 	if h == nil {
@@ -596,7 +606,7 @@ func Read(ctx Context, ino Ino, buf []byte, off uint64, fh uint64) (n int, err s
 
 func Write(ctx Context, ino Ino, buf []byte, off, fh uint64) (err syscall.Errno) {
 	size := uint64(len(buf))
-	defer func() { oplog(ctx, "write (%d,%d,%d): %s", ino, size, off, strerr(err)) }()
+	defer func() { logit(ctx, "write (%d,%d,%d): %s", ino, size, off, strerr(err)) }()
 	if IsSpecialNode(ino) {
 		err = syscall.EACCES
 		return
@@ -646,7 +656,7 @@ func Write(ctx Context, ino Ino, buf []byte, off, fh uint64) (err syscall.Errno)
 }
 
 func Fallocate(ctx Context, ino Ino, mode uint8, off, length int64, fh uint64) (err syscall.Errno) {
-	defer func() { oplog(ctx, "fallocate (%d,%d,%d,%d): %s", ino, mode, off, length, strerr(err)) }()
+	defer func() { logit(ctx, "fallocate (%d,%d,%d,%d): %s", ino, mode, off, length, strerr(err)) }()
 	if off < 0 || length <= 0 {
 		err = syscall.EINVAL
 		return
@@ -701,7 +711,7 @@ func doFsync(ctx Context, h *handle) (err syscall.Errno) {
 }
 
 func Flush(ctx Context, ino Ino, fh uint64, lockOwner uint64) (err syscall.Errno) {
-	defer func() { oplog(ctx, "flush (%d): %s", ino, strerr(err)) }()
+	defer func() { logit(ctx, "flush (%d): %s", ino, strerr(err)) }()
 	if IsSpecialNode(ino) {
 		return
 	}
@@ -735,7 +745,7 @@ func Flush(ctx Context, ino Ino, fh uint64, lockOwner uint64) (err syscall.Errno
 }
 
 func Fsync(ctx Context, ino Ino, datasync int, fh uint64) (err syscall.Errno) {
-	defer func() { oplog(ctx, "fsync (%d,%d): %s", ino, datasync, strerr(err)) }()
+	defer func() { logit(ctx, "fsync (%d,%d): %s", ino, datasync, strerr(err)) }()
 	if IsSpecialNode(ino) {
 		return
 	}

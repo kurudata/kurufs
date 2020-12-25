@@ -8,9 +8,7 @@ import (
 
 const (
 	minInternalNode = 0x7FFFFFFFFFFFF0
-
-	oplogInode  = minInternalNode + 1
-	configInode = minInternalNode + 3
+	logInode        = minInternalNode + 1
 )
 
 type internalNode struct {
@@ -20,8 +18,7 @@ type internalNode struct {
 }
 
 var internalNodes = []*internalNode{
-	{oplogInode, ".oplog", &Attr{Mode: 0400}},
-	{configInode, ".jfsconfig", &Attr{Mode: 0400}},
+	{logInode, ".accesslog", &Attr{Mode: 0400}},
 }
 
 func init() {
@@ -65,6 +62,9 @@ func getInternalNode(ino Ino) *internalNode {
 }
 
 func getInternalNodeByName(name string) *internalNode {
+	if name[0] != '.' {
+		return nil
+	}
 	for _, n := range internalNodes {
 		if name == n.name {
 			return n

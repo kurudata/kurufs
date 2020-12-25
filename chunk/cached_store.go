@@ -669,6 +669,9 @@ func (store *cachedStore) Get(key string) (result []byte, err error) {
 // NewCachedStore create a cached store.
 func NewCachedStore(storage object.ObjectStorage, config Config) ChunkStore {
 	compressor := utils.NewCompressor(config.Compress)
+	if compressor == nil {
+		logger.Fatalf("unknown compress algorithm: %s", config.Compress)
+	}
 	if config.GetTimeout == 0 {
 		config.GetTimeout = time.Second * 60
 	}
