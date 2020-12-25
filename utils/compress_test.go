@@ -42,10 +42,6 @@ func TestGoLZ4(t *testing.T) {
 	testCompress(t, NewCompressor("LZ4"))
 }
 
-func TestLZ4Stream(t *testing.T) {
-	testCompress(t, NewCompressor("LZ4Stream"))
-}
-
 func benchmarkDecompress(b *testing.B, comp Compressor) {
 	f, _ := os.Open(os.Getenv("PAYLOAD"))
 	var c = make([]byte, 5<<20)

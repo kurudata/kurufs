@@ -16,9 +16,6 @@ import (
 	"jfs/utils"
 
 	"github.com/juicedata/juicesync/object"
-
-	"github.com/davies/groupcache"
-	"github.com/golang/protobuf/proto"
 )
 
 const CHUNK_SIZE = 1 << 26 // 64M
@@ -28,23 +25,6 @@ const SlowRequest = time.Second * time.Duration(10)
 var (
 	logger = utils.GetLogger("juicefs")
 )
-
-// blockSink is a Sink that accept bytes from ByteView without copying.
-type blockSink struct {
-	bytes []byte
-}
-
-func (sink *blockSink) SetString(s string) error { return nil }
-func (sink *blockSink) SetBytes(v []byte) error {
-	sink.bytes = v
-	return nil
-}
-func (sink *blockSink) SetProto(m proto.Message) error { return nil }
-func (sink *blockSink) View() (groupcache.ByteView, error) {
-	return groupcache.NewByteView(sink.bytes, ""), nil
-}
-
-var _ groupcache.Sink = &blockSink{}
 
 // chunk for read only
 type rChunk struct {
@@ -88,38 +68,17 @@ func (c *rChunk) Keys() []string {
 	return keys
 }
 
-func groupKey(ctx context.Context, conf *Config) string {
-	if conf.CacheGroupSize == 0 {
-		return ""
-	}
-	if v := ctx.Value(CtxKey("inode")); v != nil {
-		var group interface{} = 0
-		if g := ctx.Value(CtxKey("group")); g != nil {
-			group = g
-		}
-		return fmt.Sprintf("#%v-%v", v, group)
-	}
-	return ""
-}
-
 func (c *rChunk) loadPage(ctx context.Context, indx int) (b *Page, err error) {
-	// start := time.Now()
-	key := c.key(indx) + groupKey(ctx, &c.store.conf)
-	var sink blockSink
-	for i := 0; i < 3 && sink.bytes == nil; i++ {
-		// for concurrent Get(), only one will got the bytes
-		err = c.store.gcache.Get(nil, key, &sink)
+	key := c.key(indx)
+	var block []byte
+	for i := 0; i < 3 && block == nil; i++ {
+		block, err = c.store.Get(key)
 		time.Sleep(time.Second * time.Duration(i*i))
-	}
-	if err == nil && len(sink.bytes) == 0 {
-		err = fmt.Errorf("can not download %s after tried 3 times", key)
 	}
 	if err != nil {
 		return nil, err
 	}
-	block := NewPage(sink.bytes)
-	// logger.Debugf("load %v_%v: %s", c.id, indx, time.Since(start))
-	return block, nil
+	return NewPage(block), nil
 }
 
 func (c *rChunk) ReadAt(ctx context.Context, page *Page, off int) (n int, err error) {
@@ -156,8 +115,7 @@ func (c *rChunk) ReadAt(ctx context.Context, page *Page, off int) (n int, err er
 	}
 
 	key := c.key(indx)
-	inGcache := c.store.gcache.IsCached(key)
-	if c.store.conf.CacheSize > 0 && !inGcache {
+	if c.store.conf.CacheSize > 0 {
 		r, err := c.store.bcache.load(key)
 		if err == nil {
 			n, err = r.ReadAt(p, int64(boff))
@@ -172,8 +130,8 @@ func (c *rChunk) ReadAt(ctx context.Context, page *Page, off int) (n int, err er
 		}
 	}
 
-	if !c.store.shouldCache(len(p)) || c.store.conf.CacheGroup == "" && !inGcache {
-		if c.store.seekable && boff > 0 && len(p) <= blockSize/4 && !inGcache {
+	if !c.store.shouldCache(len(p)) {
+		if c.store.seekable && boff > 0 && len(p) <= blockSize/4 {
 			// partial read
 			st := time.Now()
 			in, err := c.store.storage.Get(key, int64(boff), int64(len(p)))
@@ -212,18 +170,6 @@ func (c *rChunk) ReadAt(ctx context.Context, page *Page, off int) (n int, err er
 		return len(p), nil
 	}
 
-	if len(p) < blockSize/2 && c.store.conf.CacheGroup != "" {
-		// partial read
-		key = fmt.Sprintf("%s,%d,%d", key, boff, len(p)) + groupKey(ctx, &c.store.conf)
-		var sink blockSink
-		for i := 0; i < 3; i++ {
-			// for concurrent Get(), only one will got the bytes
-			c.store.gcache.Get(nil, key, &sink)
-			if sink.bytes != nil {
-				return copy(p, sink.bytes), nil
-			}
-		}
-	}
 	block, err := c.loadPage(ctx, indx)
 	if err != nil {
 		return 0, err
@@ -633,21 +579,14 @@ type Config struct {
 	UploadLimit    int
 	GetTimeout     time.Duration
 	PutTimeout     time.Duration
-	CacheGroup     string
-	CacheGroupSize int
 	CacheFullBlock bool
 	BufferSize     int
 	Readahead      int
 	Prefetch       int
 }
 
-type RateLimiter interface {
-	Wait(bytes int64)
-}
-
 type cachedStore struct {
 	storage       object.ObjectStorage
-	gcache        *groupcache.Group
 	bcache        CacheManager
 	fetcher       *prefetcher
 	conf          Config
@@ -681,15 +620,6 @@ func (store *cachedStore) load(key string, page *Page, cache bool) (err error) {
 		if used > SlowRequest {
 			logger.Infof("slow request: GET %s (%s, %.3fs)", key, err, used.Seconds())
 		}
-		// try to recover once after failed to get 2 times
-		if err != nil && tried == 1 && len(page.Data) < store.conf.PageSize {
-			if e := recoverAppendedKey(store.storage, key, store.compressor, page.Data); e == nil {
-				if cache {
-					store.bcache.cache(key, page)
-				}
-				return nil
-			}
-		}
 		tried++
 	}
 	if err != nil {
@@ -720,6 +650,47 @@ func (store *cachedStore) load(key string, page *Page, cache bool) (err error) {
 	return nil
 }
 
+func (store *cachedStore) Get(key string) (result []byte, err error) {
+	err = withTimeout(func() error {
+		var boff, limit int
+		if strings.Contains(key, ",") {
+			parts := strings.SplitN(key, ",", 3)
+			key = parts[0]
+			boff, _ = strconv.Atoi(parts[1])
+			limit, _ = strconv.Atoi(parts[2])
+		}
+		size := parseObjOrigSize(key)
+		if size == 0 || size > store.conf.PageSize {
+			logger.Fatalf("Invalid key: %s", key)
+		}
+		if limit == 0 {
+			limit = size
+		}
+		r, err := store.bcache.load(key)
+		if err == nil {
+			// TODO: use page
+			block := make([]byte, limit)
+			n, err := r.ReadAt(block, int64(boff))
+			r.Close()
+			if err == nil {
+				result = block
+				return nil
+			}
+			if f, ok := r.(*os.File); ok {
+				logger.Errorf("short chunk %s: %d < %d", key, n, size)
+				os.Remove(f.Name())
+			}
+		}
+		block := make([]byte, size)
+		err = store.load(key, NewPage(block), true)
+		if err == nil {
+			result = block[boff : boff+limit]
+		}
+		return err
+	}, store.conf.GetTimeout)
+	return result, err
+}
+
 // NewCachedStore create a cached store.
 func NewCachedStore(storage object.ObjectStorage, config Config) ChunkStore {
 	compressor := utils.NewCompressor(config.Compress)
@@ -743,61 +714,9 @@ func NewCachedStore(storage object.ObjectStorage, config Config) ChunkStore {
 		config.Prefetch = 0 // disable prefetch if cache is disabled
 	}
 	store.fetcher = newPrefetcher(config.Prefetch, func(key string) {
-		store.gcache.Get(nil, key, &blockSink{})
+		store.Get(key)
 	})
-	name := config.CacheGroup
-	if name == "" {
-		name = fmt.Sprintf("block-%p", store)
-	}
-	store.gcache = groupcache.GetGroup(name)
-	if store.gcache == nil {
-		store.gcache = groupcache.NewGroup(name, 32<<20, groupcache.GetterFunc(
-			func(ctx groupcache.Context, key string, dest groupcache.Sink) (err error) {
-				return withTimeout(func() error {
-					if strings.Contains(key, "#") {
-						key = key[:strings.Index(key, "#")]
-					}
-					var boff, limit int
-					if strings.Contains(key, ",") {
-						parts := strings.SplitN(key, ",", 3)
-						key = parts[0]
-						boff, _ = strconv.Atoi(parts[1])
-						limit, _ = strconv.Atoi(parts[2])
-					}
-					size := parseObjOrigSize(key)
-					if size == 0 || size > store.conf.PageSize {
-						logger.Fatalf("Invalid key: %s", key)
-					}
-					if limit == 0 {
-						limit = size
-					}
-					// the buffer will be kept in groupcache, can't be re-cycled.
-					r, err := store.bcache.load(key)
-					if err == nil {
-						block := make([]byte, limit)
-						n, err := r.ReadAt(block, int64(boff))
-						r.Close()
-						if err == nil {
-							dest.SetBytes(block)
-							return nil
-						}
-						if f, ok := r.(*os.File); ok {
-							logger.Errorf("short chunk %s: %d < %d", key, n, size)
-							os.Remove(f.Name())
-						}
-					}
-					block := make([]byte, size)
-					err = store.load(key, NewPage(block), true)
-					if err == nil {
-						dest.SetBytes(block[boff : boff+limit])
-					}
-					return err
-				}, config.GetTimeout)
-			}))
-	}
-
 	go store.uploadStaging()
-	// TODO: Scan all the block with old style key
 	return store
 }
 
@@ -813,40 +732,6 @@ func parseObjOrigSize(key string) int {
 	p := strings.LastIndexByte(key, '_')
 	l, _ := strconv.Atoi(key[p+1:])
 	return l
-}
-
-func recoverAppendedKey(store object.ObjectStorage, key string, compressor utils.Compressor, block []byte) error {
-	prefix := key[:strings.LastIndexByte(key, '_')]
-	objs, err := store.List(prefix, "", 1000)
-	if err != nil {
-		return err
-	}
-	for _, obj := range objs {
-		l := parseObjOrigSize(obj.Key)
-		if l >= len(block) {
-			in, err := store.Get(obj.Key, 0, -1)
-			if err != nil {
-				logger.Warnf("get %s: %s", obj.Key, err)
-				continue
-			}
-			src, err := ioutil.ReadAll(in)
-			in.Close()
-			if err != nil {
-				continue
-			}
-			p := NewOffPage(l)
-			defer p.Release()
-			n, err := compressor.Decompress(p.Data, src)
-			if err != nil || n < len(block) {
-				logger.Warnf("load %s: %s (%d < %d)", obj.Key, err, n, len(block))
-				continue
-			}
-			copy(block, p.Data[:n])
-			logger.Infof("recovered %s using %s", key, obj.Key)
-			return nil
-		}
-	}
-	return errors.New("not recoverable")
 }
 
 func (s *cachedStore) uploadStaging() {

@@ -140,31 +140,9 @@ func TestAsyncStore(t *testing.T) {
 	conf.UploadLimit = 0
 	store := NewCachedStore(mem, conf)
 	time.Sleep(time.Millisecond * 10) // wait for scan to finish
-	if mem.Exists("chunks/0/0/123_0_4") != nil {
+	if _, err := mem.Head("chunks/0/0/123_0_4"); err != nil {
 		t.Fatalf("staging object should be upload")
 	}
 	testStore(t, store)
 }
 
-func TestRecoverAppendedObject(t *testing.T) {
-	mem := object.CreateStorage("mem", "", "", "")
-	comp := utils.NewCompressor("zstd")
-	var block = make([]byte, 2)
-	err := recoverAppendedKey(mem, "chunks/1_0_2", comp, block)
-	if err == nil {
-		t.Fatalf("recover should fail")
-		t.FailNow()
-	}
-
-	data := []byte("hello")
-	buf := make([]byte, 1024)
-	n, _ := comp.Compress(buf, data)
-	mem.Put("chunks/1_0_5", bytes.NewReader(buf[:n]))
-	err = recoverAppendedKey(mem, "chunks/1_0_2", comp, block)
-	if err != nil {
-		t.Fatalf("recover fail: %s", err)
-	}
-	if string(block) != "he" {
-		t.Fatalf("unexpected result: %v != %v", string(block), "he")
-	}
-}

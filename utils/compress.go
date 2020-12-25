@@ -1,15 +1,12 @@
 package utils
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"strings"
 
 	"github.com/DataDog/zstd"
-	"github.com/pierrec/lz4"
 )
 
 const ZSTD_LEVEL = 1 // fastest
@@ -24,12 +21,10 @@ type Compressor interface {
 
 func NewCompressor(algr string) Compressor {
 	algr = strings.ToLower(algr)
-	if algr == "zstd0" || algr == "zstd" {
+	if algr == "zstd" {
 		return &ZStandard{ZSTD_LEVEL}
 	} else if algr == "lz4" {
 		return &LZ4{}
-	} else if algr == "lz4stream" {
-		return &LZ4Stream{}
 	} else if algr == "none" || algr == "" {
 		return noOp{}
 	}
@@ -98,42 +93,4 @@ func (l LZ4) Decompress(dst, src []byte) (int, error) {
 }
 func (l LZ4) NewReader(r io.Reader) io.ReadCloser {
 	panic("not supported")
-}
-
-const lz4BlockSize = 64 << 10
-
-type LZ4Stream struct{}
-
-func (z *LZ4Stream) Name() string            { return "LZ4Stream" }
-func (z *LZ4Stream) CompressBound(l int) int { return 15 + l + (l/lz4BlockSize+1)*4 + 4 }
-func (z *LZ4Stream) Compress(dst, src []byte) (int, error) {
-	buf := bytes.NewBuffer(dst[:0])
-	w := lz4.NewWriter(buf)
-	w.NoChecksum = true
-	w.BlockMaxSize = lz4BlockSize
-	_, err := w.Write(src)
-	if err != nil {
-		return 0, err
-	}
-	err = w.Close()
-	if err != nil {
-		return 0, err
-	}
-	return buf.Len(), err
-}
-func (z *LZ4Stream) Decompress(dst, src []byte) (int, error) {
-	r := lz4.NewReader(bytes.NewBuffer(src))
-	var got int
-	for got < len(dst) {
-		n, err := r.Read(dst[got:])
-		if err != nil {
-			return got, err
-		}
-		got += n
-	}
-	return got, nil
-}
-func (z *LZ4Stream) NewReader(r io.Reader) io.ReadCloser {
-	r = bufio.NewReaderSize(r, 4<<10)
-	return ioutil.NopCloser(lz4.NewReader(r))
 }
