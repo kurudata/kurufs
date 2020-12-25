@@ -15,6 +15,22 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
+/*
+	Node: i$inode -> Attribute{type,mode,uid,gid,atime,mtime,ctime,nlink,length,rdev}
+	Dir:   d$inode -> {name -> {inode,type}}
+	File:  c$inode_$indx -> [Slice{pos,id,length,off,len},]
+	Symlink: s$inode -> target
+
+	TODO:
+	Xattr: x$inode -> {name -> value}
+	ACL:
+	Posix Lock:
+	Flock:	
+
+	Sessions
+	Removed chunks
+*/
+
 var logger = utils.GetLogger("juicefs")
 
 const usedSpace = "usedSpace"
@@ -67,10 +83,10 @@ func NewRedisMeta(url string, conf *RedisConfig) Meta {
 	return m
 }
 
-func (c *redisMeta) OnMsg(mtype uint32, cb MsgCallback) {
-	c.msgCallbacks.Lock()
-	defer c.msgCallbacks.Unlock()
-	c.msgCallbacks.callbacks[mtype] = cb
+func (r *redisMeta) OnMsg(mtype uint32, cb MsgCallback) {
+	r.msgCallbacks.Lock()
+	defer r.msgCallbacks.Unlock()
+	r.msgCallbacks.callbacks[mtype] = cb
 }
 
 func (r *redisMeta) newMsg(mid uint32, args ...interface{}) error {

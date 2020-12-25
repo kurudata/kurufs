@@ -2,7 +2,7 @@ package chunk
 
 import (
 	"context"
-	"jfs/object"
+	"github.com/juicedata/juicesync/object"
 	"testing"
 	"time"
 )

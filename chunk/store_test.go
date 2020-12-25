@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"jfs/object"
+	"github.com/juicedata/juicesync/object"
 	"jfs/utils"
 )
 

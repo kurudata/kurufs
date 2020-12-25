@@ -20,10 +20,11 @@ import (
 	"jfs/chunk"
 	"jfs/fuse"
 	"jfs/meta"
-	"jfs/object"
 	"jfs/redis"
 	"jfs/utils"
 	"jfs/vfs"
+
+	"github.com/juicedata/juicesync/object"
 
 	"github.com/google/gops/agent"
 	"github.com/sirupsen/logrus"
@@ -179,9 +180,9 @@ func main() {
 	blob := createStorage(storeConf)
 	logger.Infof("Data uses %s", blob)
 	if *test {
-		if err := object.DoTesting(blob); err != nil {
-			logger.Fatalf("Storage %s is not configured correctly: %s", blob, err)
-		}
+		// if err := obj.DoTesting(blob); err != nil {
+		// 	logger.Fatalf("Storage %s is not configured correctly: %s", blob, err)
+		// }
 		os.Exit(0)
 	}
 

@@ -13,8 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"jfs/object"
 	"jfs/utils"
+
+	"github.com/juicedata/juicesync/object"
 
 	"github.com/davies/groupcache"
 	"github.com/golang/protobuf/proto"
