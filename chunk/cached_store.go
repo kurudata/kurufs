@@ -56,18 +56,6 @@ func (c *rChunk) index(off int) int {
 	return off / c.store.conf.PageSize
 }
 
-func (c *rChunk) Keys() []string {
-	if c.length <= 0 {
-		return nil
-	}
-	lastIndx := (c.length - 1) / c.store.conf.PageSize
-	keys := make([]string, lastIndx+1)
-	for i := 0; i <= lastIndx; i++ {
-		keys[i] = c.key(i)
-	}
-	return keys
-}
-
 func (c *rChunk) loadPage(ctx context.Context, indx int) (b *Page, err error) {
 	key := c.key(indx)
 	var block []byte
@@ -506,19 +494,6 @@ func (c *wChunk) Len() int {
 	return c.length
 }
 
-func (c *wChunk) Bytes() []byte {
-	if c.length > c.store.conf.PageSize {
-		logger.Fatalf("get bytes from multi blocks")
-	}
-	var buf = make([]byte, 0, c.length)
-	for _, pages := range c.pages {
-		for _, p := range pages {
-			buf = append(buf, p.Data...)
-		}
-	}
-	return buf
-}
-
 func (c *wChunk) FlushTo(offset int) error {
 	if offset < c.uploaded {
 		logger.Fatalf("Invalid offset: %d < %d", offset, c.uploaded)
@@ -705,7 +680,7 @@ func NewCachedStore(storage object.ObjectStorage, config Config) ChunkStore {
 		conf:          config,
 		currentUpload: make(chan bool, config.MaxUpload),
 		compressor:    compressor,
-		seekable:      compressor.CompressBound(0) == 0 && !strings.Contains(storage.String(), "(encrypted)"),
+		seekable:      compressor.CompressBound(0) == 0,
 		bcache:        newCacheManager(&config),
 		pendingKeys:   make(map[string]bool),
 		group:         &Group{},
@@ -718,10 +693,6 @@ func NewCachedStore(storage object.ObjectStorage, config Config) ChunkStore {
 	})
 	go store.uploadStaging()
 	return store
-}
-
-func (c *cachedStore) Seekable() bool {
-	return c.seekable
 }
 
 func (c *cachedStore) shouldCache(size int) bool {

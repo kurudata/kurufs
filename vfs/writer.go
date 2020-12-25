@@ -175,7 +175,7 @@ func (c *chunkWriter) commitThread() {
 
 		if err == 0 {
 			var ss = meta.Slice{s.id, s.length, s.soff, s.slen}
-			err = f.w.m.WriteChunk(meta.Background, f.inode, c.indx, s.off, ss)
+			err = f.w.m.Write(meta.Background, f.inode, c.indx, s.off, ss)
 		}
 
 		f.Lock()

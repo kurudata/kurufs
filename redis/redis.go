@@ -25,7 +25,7 @@ import (
 	Xattr: x$inode -> {name -> value}
 	ACL:
 	Posix Lock:
-	Flock:	
+	Flock:
 
 	Sessions
 	Removed chunks
@@ -935,7 +935,7 @@ func (r *redisMeta) Close(ctx Context, inode Ino) syscall.Errno {
 	return 0
 }
 
-func (r *redisMeta) ReadChunk(inode Ino, indx uint32, chunks *[]Slice) syscall.Errno {
+func (r *redisMeta) Read(inode Ino, indx uint32, chunks *[]Slice) syscall.Errno {
 	vals, err := r.rdb.LRange(c, r.chunkKey(inode, indx), 0, 1000000).Result()
 	if err != nil {
 		return errno(err)
@@ -971,7 +971,7 @@ func (r *redisMeta) NewChunk(ctx Context, inode Ino, indx uint32, offset uint32,
 	return errno(err)
 }
 
-func (r *redisMeta) WriteChunk(ctx Context, inode Ino, indx uint32, off uint32, slice Slice) syscall.Errno {
+func (r *redisMeta) Write(ctx Context, inode Ino, indx uint32, off uint32, slice Slice) syscall.Errno {
 	return r.txn(func(tx *redis.Tx) error {
 		// TODO: refcount for chunkid
 		var attr Attr

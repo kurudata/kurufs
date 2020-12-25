@@ -1,7 +1,6 @@
 package chunk
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -11,7 +10,6 @@ import (
 	"time"
 
 	"github.com/juicedata/juicesync/object"
-	"jfs/utils"
 )
 
 func testStore(t *testing.T, store ChunkStore) {
@@ -145,4 +143,3 @@ func TestAsyncStore(t *testing.T) {
 	}
 	testStore(t, store)
 }
-

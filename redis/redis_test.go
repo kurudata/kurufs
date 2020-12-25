@@ -58,11 +58,11 @@ func TestRedisClient(t *testing.T) {
 		t.Fatalf("write chunk: %s", st)
 	}
 	var s = meta.Slice{chunkid, 100, 0, 100}
-	if st := m.WriteChunk(ctx, inode, 0, 100, s); st != 0 {
+	if st := m.Write(ctx, inode, 0, 100, s); st != 0 {
 		t.Fatalf("write end: %s", st)
 	}
 	var chunks []meta.Slice
-	if st := m.ReadChunk(inode, 0, &chunks); st != 0 {
+	if st := m.Read(inode, 0, &chunks); st != 0 {
 		t.Fatalf("read chunk: %s", st)
 	}
 	if len(chunks) != 1 || chunks[0].Chunkid != chunkid || chunks[0].Clen != 100 {

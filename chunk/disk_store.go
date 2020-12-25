@@ -3,7 +3,6 @@ package chunk
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -19,10 +18,6 @@ func (c *diskFile) ID() uint64 {
 
 func (c *diskFile) SetID(id uint64) {
 	c.id = id
-}
-
-func (c *diskFile) Keys() []string {
-	return nil
 }
 
 func (c *diskFile) ReadAt(ctx context.Context, p *Page, off int) (n int, err error) {
@@ -59,16 +54,6 @@ func (c *diskFile) Len() int {
 	return int(fi.Size())
 }
 
-func (c *diskFile) Bytes() []byte {
-	f, err := os.Open(c.path)
-	if err != nil {
-		return nil
-	}
-	defer f.Close()
-	d, _ := ioutil.ReadAll(f)
-	return d
-}
-
 func (c *diskFile) Finish(length int) error {
 	if c.Len() < length {
 		return fmt.Errorf("data length mismatch: %v != %v", c.Len(), length)
@@ -94,10 +79,6 @@ func NewDiskStore(dir string) ChunkStore {
 		os.Mkdir(dir, 0755)
 	}
 	return &diskStore{dir}
-}
-
-func (c *diskStore) Seekable() bool {
-	return true
 }
 
 func (s *diskStore) NewReader(chunkid uint64, length int) Reader {

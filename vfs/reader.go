@@ -154,7 +154,7 @@ func (s *sliceReader) run() {
 	length := f.length
 	f.Unlock()
 	var chunks []meta.Slice
-	err := f.r.m.ReadChunk(inode, indx, &chunks)
+	err := f.r.m.Read(inode, indx, &chunks)
 	f.Lock()
 	if s.state != BUSY || f.err != 0 || f.closing {
 		s.done(0, 0)
@@ -188,7 +188,7 @@ func (s *sliceReader) run() {
 	defer p.Release()
 	var n int
 	ctx := context.TODO()
-	n = f.r.readChunk(ctx, p, chunks, (uint32(s.block.off))&meta.CHUNKMASK)
+	n = f.r.Read(ctx, p, chunks, (uint32(s.block.off))&meta.CHUNKMASK)
 
 	f.Lock()
 	if s.state != BUSY || f.shouldStop() {
@@ -717,7 +717,7 @@ func (r *dataReader) readSlice(ctx context.Context, s *meta.Slice, page *chunk.P
 	return nil
 }
 
-func (r *dataReader) readChunk(ctx context.Context, page *chunk.Page, chunks []meta.Slice, offset uint32) int {
+func (r *dataReader) Read(ctx context.Context, page *chunk.Page, chunks []meta.Slice, offset uint32) int {
 	if len(chunks) > 16 {
 		return r.readManyChunks(ctx, page, chunks, offset)
 	}

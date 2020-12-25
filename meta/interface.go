@@ -54,7 +54,7 @@ type Attr struct {
 	Full      bool
 }
 
-func TypeToStatType(_type uint8) uint32 {
+func typeToStatType(_type uint8) uint32 {
 	switch _type & 0x7F {
 	case TYPE_DIRECTORY:
 		return syscall.S_IFDIR
@@ -76,7 +76,7 @@ func TypeToStatType(_type uint8) uint32 {
 }
 
 func (a Attr) SMode() uint32 {
-	return TypeToStatType(a.Typ) | uint32(a.Mode)
+	return typeToStatType(a.Typ) | uint32(a.Mode)
 }
 
 type Entry struct {
@@ -112,12 +112,9 @@ type Meta interface {
 	Create(ctx Context, parent Ino, name string, mode uint16, cumask uint16, inode *Ino, attr *Attr) syscall.Errno
 	Open(ctx Context, inode Ino, flags uint8, attr *Attr) syscall.Errno
 	Close(ctx Context, inode Ino) syscall.Errno
-	ReadChunk(inode Ino, indx uint32, chunks *[]Slice) syscall.Errno
+	Read(inode Ino, indx uint32, chunks *[]Slice) syscall.Errno
 	NewChunk(ctx Context, inode Ino, indx uint32, offset uint32, chunkid *uint64) syscall.Errno
-	WriteChunk(ctx Context, inode Ino, indx uint32, off uint32, slice Slice) syscall.Errno
-
-	// DelChunk(chunkid uint64) syscall.Errno
-	// CompactChunk(chunkid uint64, pos uint32, chunks []Slice, nchunkid uint64) syscall.Errno
+	Write(ctx Context, inode Ino, indx uint32, off uint32, slice Slice) syscall.Errno
 
 	OnMsg(mtype uint32, cb MsgCallback)
 }
