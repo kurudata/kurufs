@@ -3,15 +3,16 @@ package vfs
 import (
 	"context"
 	"fmt"
-	"jfs/chunk"
-	"jfs/meta"
-	"jfs/utils"
 	"runtime"
 	"sort"
 	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"github.com/juicedata/juicefs/chunk"
+	"github.com/juicedata/juicefs/meta"
+	"github.com/juicedata/juicefs/utils"
 )
 
 /*

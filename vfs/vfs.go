@@ -1,12 +1,13 @@
 package vfs
 
 import (
-	"jfs/chunk"
-	"jfs/meta"
-	"jfs/utils"
 	"runtime"
 	"syscall"
 	"time"
+
+	"github.com/juicedata/juicefs/chunk"
+	"github.com/juicedata/juicefs/meta"
+	"github.com/juicedata/juicefs/utils"
 )
 
 type Ino = meta.Ino

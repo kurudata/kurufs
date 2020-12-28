@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"jfs/utils"
+	"github.com/juicedata/juicefs/utils"
 
 	"github.com/juicedata/juicesync/object"
 )

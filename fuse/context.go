@@ -1,10 +1,11 @@
 package fuse
 
 import (
-	"jfs/meta"
-	"jfs/vfs"
 	"sync"
 	"time"
+
+	"github.com/juicedata/juicefs/meta"
+	"github.com/juicedata/juicefs/vfs"
 
 	"github.com/hanwen/go-fuse/v2/fuse"
 )

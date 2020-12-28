@@ -18,12 +18,12 @@ import (
 	"syscall"
 	"time"
 
-	"jfs/chunk"
-	"jfs/fuse"
-	"jfs/meta"
-	"jfs/redis"
-	"jfs/utils"
-	"jfs/vfs"
+	"github.com/juicedata/juicefs/chunk"
+	"github.com/juicedata/juicefs/fuse"
+	"github.com/juicedata/juicefs/meta"
+	"github.com/juicedata/juicefs/redis"
+	"github.com/juicedata/juicefs/utils"
+	"github.com/juicedata/juicefs/vfs"
 
 	"github.com/juicedata/juicesync/object"
 	"github.com/sirupsen/logrus"

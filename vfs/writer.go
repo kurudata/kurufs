@@ -1,13 +1,14 @@
 package vfs
 
 import (
-	"jfs/chunk"
-	"jfs/meta"
-	"jfs/utils"
 	"runtime"
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/juicedata/juicefs/chunk"
+	"github.com/juicedata/juicefs/meta"
+	"github.com/juicedata/juicefs/utils"
 )
 
 const (

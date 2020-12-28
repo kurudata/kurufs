@@ -1,4 +1,4 @@
-module jfs
+module github.com/juicedata/juicefs
 
 go 1.13
 

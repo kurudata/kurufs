@@ -1,7 +1,7 @@
 package fuse
 
 import (
-	"jfs/meta"
+	"github.com/juicedata/juicefs/meta"
 
 	"github.com/hanwen/go-fuse/v2/fuse"
 )
@@ -21,16 +21,16 @@ func attrToStat(inode Ino, attr *Attr, out *fuse.Attr) {
 
 	var size, blocks uint64
 	switch attr.Typ {
-	case  meta.TYPE_DIRECTORY:
+	case meta.TYPE_DIRECTORY:
 		fallthrough
-	case  meta.TYPE_SYMLINK:
+	case meta.TYPE_SYMLINK:
 		fallthrough
-	case  meta.TYPE_FILE:
+	case meta.TYPE_FILE:
 		size = attr.Length
 		blocks = (size + 511) / 512
-	case  meta.TYPE_BLOCKDEV:
+	case meta.TYPE_BLOCKDEV:
 		fallthrough
-	case  meta.TYPE_CHARDEV:
+	case meta.TYPE_CHARDEV:
 		out.Rdev = attr.Rdev
 	}
 	out.Size = size

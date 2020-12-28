@@ -2,14 +2,15 @@ package fuse
 
 import (
 	"fmt"
-	"jfs/meta"
-	"jfs/utils"
-	"jfs/vfs"
 	"os"
 	"runtime"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/juicedata/juicefs/meta"
+	"github.com/juicedata/juicefs/utils"
+	"github.com/juicedata/juicefs/vfs"
 
 	"github.com/hanwen/go-fuse/v2/fuse"
 )

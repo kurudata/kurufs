@@ -4,8 +4,9 @@ package vfs
 
 import (
 	"fmt"
-	"jfs/meta"
 	"syscall"
+
+	"github.com/juicedata/juicefs/meta"
 
 	"golang.org/x/sys/unix"
 )

@@ -10,3 +10,4 @@ ltmain.sh
 fstests/secfs.test
 !fstests/Makefile
 jfs
+juicefs

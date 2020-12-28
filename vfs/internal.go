@@ -1,9 +1,10 @@
 package vfs
 
 import (
-	"jfs/meta"
 	"os"
 	"time"
+
+	"github.com/juicedata/juicefs/meta"
 )
 
 const (

@@ -3,9 +3,10 @@ package chunk
 import (
 	"errors"
 	"io"
-	"jfs/utils"
 	"runtime"
 	"sync/atomic"
+
+	"github.com/juicedata/juicefs/utils"
 )
 
 // Page is a page with refcount

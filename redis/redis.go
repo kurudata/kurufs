@@ -5,13 +5,14 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	. "jfs/meta"
-	"jfs/utils"
 	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
+
+	. "github.com/juicedata/juicefs/meta"
+	"github.com/juicedata/juicefs/utils"
 
 	"github.com/go-redis/redis/v8"
 )

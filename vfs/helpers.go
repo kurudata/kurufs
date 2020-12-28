@@ -2,9 +2,10 @@ package vfs
 
 import (
 	"fmt"
-	"jfs/meta"
 	"syscall"
 	"time"
+
+	"github.com/juicedata/juicefs/meta"
 )
 
 func strerr(errno syscall.Errno) string {

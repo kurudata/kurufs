@@ -1,8 +1,9 @@
 package redis
 
 import (
-	"jfs/meta"
 	"testing"
+
+	"github.com/juicedata/juicefs/meta"
 )
 
 func TestRedisClient(t *testing.T) {

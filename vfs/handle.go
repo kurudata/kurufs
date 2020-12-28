@@ -1,10 +1,11 @@
 package vfs
 
 import (
-	"jfs/meta"
-	"jfs/utils"
 	"sync"
 	"time"
+
+	"github.com/juicedata/juicefs/meta"
+	"github.com/juicedata/juicefs/utils"
 )
 
 type handle struct {
