@@ -1,18 +1,19 @@
 package main
 
 import (
-	"flag"
+	"bytes"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"math/rand"
 	"net/http"
 	_ "net/http/pprof"
-	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -25,12 +26,13 @@ import (
 	"jfs/vfs"
 
 	"github.com/juicedata/juicesync/object"
+	"github.com/sirupsen/logrus"
+	"github.com/urfave/cli/v2"
 
 	"github.com/google/gops/agent"
-	"github.com/sirupsen/logrus"
 )
 
-func installHandler() {
+func installHandler(mp string) {
 	// Go will catch all the signals
 	signal.Ignore(syscall.SIGPIPE)
 	signalChan := make(chan os.Signal, 10)
@@ -40,9 +42,9 @@ func installHandler() {
 			<-signalChan
 			go func() {
 				if runtime.GOOS == "linux" {
-					exec.Command("umount", *mountpoint, "-l").Run()
+					exec.Command("umount", mp, "-l").Run()
 				} else if runtime.GOOS == "darwin" {
-					exec.Command("diskutil", "umount", "force", *mountpoint).Run()
+					exec.Command("diskutil", "umount", "force", mp).Run()
 				}
 			}()
 			go func() {
@@ -53,49 +55,7 @@ func installHandler() {
 	}()
 }
 
-var mountpoint = flag.String("mountpoint", "/jfs", "mount point")
-var fuseopts = flag.String("o", "", "other fuse options")
-var attrcacheto = flag.Float64("attrcacheto", 1.0, "attributes cache timeout in seconds")
-var entrycacheto = flag.Float64("entrycacheto", 1.0, "file entry cache timeout in seconds")
-var direntrycacheto = flag.Float64("direntrycacheto", 1.0, "dir entry cache timeout in seconds")
-
-var metaAddr = flag.String("meta", "redis://127.0.0.1:6379/1", "address for Redis")
-
-var storageName = flag.String("storage", "file", "type of object storage: file, s3, ufile, qingstor, oss")
-
-var localDir = flag.String("dir", "/var/jfs", "root of chunk store")
-var diskFailRatio = flag.Float64("failRatio", 0.0, "simulate request failure")
-var reqDelay = flag.String("reqDelay", "0ms", "simulate slowness of object storage")
-var test = flag.Bool("test", false, "test accessing to object storage")
-
-var endpoint = flag.String("endpoint", "", "bucket and endpoint for object storage")
-var accesskey = flag.String("accesskey", "", "Access key for object storage")
-var secretkey = flag.String("secretkey", "", "Secret key for object storage")
-
-var objectSize = flag.Int("objectSize", 4096, "size of object in KiB")
-var partitions = flag.Int("partitions", 1, "number of hash partition for objects")
-var compress = flag.String("compress", "lz4", "compression algorithm")
-var getTimeout = flag.Int("getTimeout", 60, "the max number of seconds to download an object")
-var putTimeout = flag.Int("putTimeout", 60, "the max number of seconds to upload an object")
-var bufferSize = flag.Int("bufferSize", 300, "total read/write buffering in MB")
-var readahead = flag.Int("readahead", 0, "max readahead in MiB (default: bufferSize/5)")
-var prefetch = flag.Int("prefetch", 3, "prefetch N blocks in parallel")
-var ioretries = flag.Int("ioretries", 10, "number of retries after network failure")
-var maxUpload = flag.Int("maxUpload", 20, "number of connections to upload")
-
-var cacheDir = flag.String("cacheDir", "/var/jfsCache", "directory to cache object")
-var cacheSize = flag.Int64("cacheSize", 1<<10, "size of cached objects in MB")
-var freeSpace = flag.Float64("freeSpace", 0.1, "min free space (ratio)")
-var cacheMode = flag.String("cacheMode", "0600", "file permissions for cached blocks")
-var writeback = flag.Bool("async", false, "Upload objects in background")
-var cachePartialOnly = flag.Bool("cachePartialOnly", false, "cache only random/small read")
-
-var version = flag.Bool("V", false, "show version")
 var logger = utils.GetLogger("juicefs")
-var trace = flag.Bool("vv", false, "turn on trace log")
-var debug = flag.Bool("v", false, "turn on debug log")
-var quiet = flag.Bool("q", false, "change log level to ERROR")
-var nosyslog = flag.Bool("nosyslog", false, "log to syslog")
 
 func fixObjectSize(s int) int {
 	var bits uint
@@ -113,35 +73,325 @@ func fixObjectSize(s int) int {
 }
 
 func main() {
+	var defaultCacheDir = "/var/jfsCache"
+	var defaultBucket = "/var/jfs"
+	var defaultMountpoint = "/jfs"
 	if runtime.GOOS == "darwin" {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
 			logger.Errorf("%v", err)
 			return
 		}
-		*mountpoint = path.Join(homeDir, "jfs")
-		*localDir = path.Join(homeDir, ".juicefs", "local")
-		*cacheDir = path.Join(homeDir, ".juiefs", "cache")
+		defaultMountpoint = path.Join(homeDir, "jfs")
+		defaultBucket = path.Join(homeDir, ".juicefs", "local")
+		defaultCacheDir = path.Join(homeDir, ".juicefs", "cache")
 	}
 
-	flag.Parse()
-	if *version {
-		fmt.Println("JuiceFS CE", Build())
-		return
+	app := &cli.App{
+		Name:      "juicefs",
+		Usage:     "A POSIX filesystem built on redis and object storage.",
+		Version:   Build(),
+		Copyright: "AGPLv3",
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:  "debug",
+				Usage: "enable debug log",
+			},
+			&cli.BoolFlag{
+				Name:    "quiet",
+				Aliases: []string{"q"},
+				Usage:   "only warning and errors",
+			},
+			&cli.BoolFlag{
+				Name:  "trace",
+				Usage: "enable trace log",
+			},
+			&cli.BoolFlag{
+				Name:  "nosyslog",
+				Usage: "disable syslog",
+			},
+		},
+		Commands: []*cli.Command{
+			{
+				Name:  "format",
+				Usage: "format a volume",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  "name",
+						Usage: "Volume name",
+					},
+					&cli.StringFlag{
+						Name:    "meta",
+						Aliases: []string{"m"},
+						Value:   "redis://localhost:6379/1",
+						Usage:   "Address for metadata",
+					},
+					&cli.IntFlag{
+						Name:  "blockSize",
+						Value: 4096,
+						Usage: "size of block in KiB",
+					},
+					&cli.StringFlag{
+						Name:  "compress",
+						Value: "lz4",
+						Usage: "compression algorithm",
+					},
+					&cli.StringFlag{
+						Name:  "storage",
+						Value: "file",
+						Usage: "Address for metadata",
+					},
+					&cli.StringFlag{
+						Name:  "bucket",
+						Value: defaultBucket,
+						Usage: "A bucket to store data",
+					},
+					&cli.StringFlag{
+						Name:  "accesskey",
+						Usage: "Access key for object storage",
+					},
+					&cli.StringFlag{
+						Name:  "secretkey",
+						Usage: "Secret key for object storage",
+					},
+				},
+				ArgsUsage: "NAME",
+				Action:    format,
+			},
+			{
+				Name:   "mount",
+				Usage:  "mount a volume",
+				Action: mount,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  "meta",
+						Value: "redis://localhost:6379/1",
+						Usage: "Address for metadata",
+					},
+					&cli.StringFlag{
+						Name:    "mountpoint",
+						Aliases: []string{"m"},
+						Value:   defaultMountpoint,
+						Usage:   "mount point",
+					},
+					&cli.StringFlag{
+						Name:  "o",
+						Usage: "other fuse options",
+					},
+					&cli.Float64Flag{
+						Name:  "attrcacheto",
+						Value: 1.0,
+						Usage: "attributes cache timeout in seconds",
+					},
+					&cli.Float64Flag{
+						Name:  "entrycacheto",
+						Value: 1.0,
+						Usage: "file entry cache timeout in seconds",
+					},
+					&cli.Float64Flag{
+						Name:  "direntrycacheto",
+						Value: 1.0,
+						Usage: "dir entry cache timeout in seconds",
+					},
+
+					&cli.IntFlag{
+						Name:  "getTimeout",
+						Value: 60,
+						Usage: "the max number of seconds to download an object",
+					},
+					&cli.IntFlag{
+						Name:  "putTimeout",
+						Value: 60,
+						Usage: "the max number of seconds to upload an object",
+					},
+					&cli.IntFlag{
+						Name:  "ioretries",
+						Value: 10,
+						Usage: "number of retries after network failure",
+					},
+					&cli.IntFlag{
+						Name:  "maxUpload",
+						Value: 20,
+						Usage: "number of connections to upload",
+					},
+					&cli.IntFlag{
+						Name:  "bufferSize",
+						Value: 300,
+						Usage: "total read/write buffering in MB",
+					},
+					&cli.IntFlag{
+						Name:  "prefetch",
+						Value: 3,
+						Usage: "prefetch N blocks in parallel",
+					},
+
+					&cli.BoolFlag{
+						Name:  "writeback",
+						Usage: "Upload objects in background",
+					},
+					&cli.StringFlag{
+						Name:  "cacheDir",
+						Value: defaultCacheDir,
+						Usage: "directory to cache object",
+					},
+					&cli.IntFlag{
+						Name:  "cacheSize",
+						Value: 1 << 10,
+						Usage: "size of cached objects in MiB",
+					},
+					&cli.Float64Flag{
+						Name:  "freeSpace",
+						Value: 0.1,
+						Usage: "min free space (ratio)",
+					},
+					&cli.BoolFlag{
+						Name:  "partialOnly",
+						Usage: "cache only random/small read",
+					},
+				},
+			},
+		},
 	}
 
-	if *trace {
+	err := app.Run(os.Args)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+}
+
+func createStorage(fmt *meta.Format) object.ObjectStorage {
+	blob := object.CreateStorage(strings.ToLower(fmt.Storage), fmt.Bucket, fmt.AccessKey, fmt.SecretKey)
+	if blob == nil {
+		logger.Fatalf("Invalid storage type: %s", fmt.Storage)
+	}
+	if fmt.Storage != "file" && fmt.Storage != "mem" {
+		blob = object.WithPrefix(blob, fmt.Volume)
+	}
+	return blob
+}
+
+var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+
+func randSeq(n int) string {
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
+}
+
+func doTesting(store object.ObjectStorage, key string, data []byte) error {
+	if err := store.Put(key, bytes.NewReader(data)); err != nil {
+		if strings.Contains(err.Error(), "Access Denied") {
+			return fmt.Errorf("Failed to put: %s", err)
+		}
+		// TODO: upgrade juicesync
+		// if err2 := store.Create(); err2 != nil {
+		// 	return fmt.Errorf("Failed to create %s: %s,  previous error: %s\nplease create bucket %s manually, then mount again",
+		// 		store, err2, err, store)
+		// }
+		if err := store.Put(key, bytes.NewReader(data)); err != nil {
+			return fmt.Errorf("Failed to put: %s", err)
+		}
+	}
+	p, err := store.Get(key, 0, -1)
+	if err != nil {
+		return fmt.Errorf("Failed to get: %s", err)
+	}
+	data2, err := ioutil.ReadAll(p)
+	p.Close()
+	if !bytes.Equal(data, data2) {
+		return fmt.Errorf("Read wrong data")
+	}
+	err = store.Delete(key)
+	if err != nil {
+		fmt.Printf("Failed to delete: %s", err)
+	}
+	return nil
+}
+
+func test(store object.ObjectStorage) error {
+	rand.Seed(int64(time.Now().UnixNano()))
+	key := "testing/" + randSeq(10)
+	data := make([]byte, 100)
+	rand.Read(data)
+	nRetry := 3
+	var err error
+	for i := 0; i < nRetry; i++ {
+		err = doTesting(store, key, data)
+		if err == nil {
+			return nil
+		}
+		time.Sleep(time.Second * time.Duration(i*3+1))
+	}
+	return err
+}
+
+func format(c *cli.Context) error {
+	if c.Bool("trace") {
 		utils.SetLogLevel(logrus.TraceLevel)
-	} else if *debug {
+	} else if c.Bool("debug") {
 		utils.SetLogLevel(logrus.DebugLevel)
-	} else if *quiet {
+	} else if c.Bool("quiet") {
 		utils.SetLogLevel(logrus.ErrorLevel)
+		utils.InitLoggers(!c.Bool("nosyslog"))
 	}
-	if !*debug {
-		utils.InitLoggers(!*nosyslog)
-	}
-	logger.Infof("JuiceFS CE %s", Build())
 
+	logger.Infof("Meta address: %s", c.String("meta"))
+
+	accesskey := c.String("accesskey")
+	if accesskey == "" && os.Getenv("ACCESS_KEY") != "" {
+		accesskey = os.Getenv("ACCESS_KEY")
+		os.Unsetenv("ACCESS_KEY")
+	}
+	secretkey := c.String("secretkey")
+	if secretkey == "" && os.Getenv("SECRET_KEY") != "" {
+		secretkey = os.Getenv("SECRET_KEY")
+		os.Unsetenv("SECRET_KEY")
+	}
+	if c.Args().Len() < 1 {
+		logger.Fatalf("please give it a name")
+	}
+	name := c.Args().Get(0)
+	blockSize := fixObjectSize(c.Int("blockSize"))
+	if blockSize != 4096 {
+		logger.Infof("files is splitted into blocks up to %d KiB", blockSize)
+	}
+	format := meta.Format{
+		Volume:      name,
+		Storage:     c.String("storage"),
+		Bucket:      c.String("bucket"),
+		AccessKey:   accesskey,
+		SecretKey:   secretkey,
+		BlockSize:   blockSize,
+		Compression: c.String("compress"),
+	}
+
+	if format.Storage == "file" && strings.HasSuffix(format.Bucket, "/") {
+		format.Bucket += "/"
+	}
+
+	object.UserAgent = "JuiceFS-CE-" + Build()
+	blob := createStorage(&format)
+	logger.Infof("Data uses %s", blob)
+	if err := test(blob); err != nil {
+		logger.Fatalf("Storage %s is not configured correctly: %s", blob, err)
+		return err
+	}
+
+	var rc = redis.RedisConfig{Retries: 10}
+	m := redis.NewRedisMeta(c.String("meta"), &rc)
+	err := m.Init(format)
+	if err != nil {
+		logger.Fatalf("format: %s", err)
+		return err
+	}
+	logger.Infof("Volume is formatted as %+v", format)
+	return nil
+}
+
+func mount(c *cli.Context) error {
 	go func() {
 		for port := 6060; port < 6100; port++ {
 			http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", port), nil)
@@ -152,63 +402,44 @@ func main() {
 			agent.Listen(agent.Options{Addr: fmt.Sprintf("127.0.0.1:%d", port)})
 		}
 	}()
-
-	var rc = redis.RedisConfig{Retries: *ioretries}
-	logger.Infof("Meta address: %s", *metaAddr)
-	m := redis.NewRedisMeta(*metaAddr, &rc)
-
-	if *accesskey == "" && os.Getenv("ACCESS_KEY") != "" {
-		*accesskey = os.Getenv("ACCESS_KEY")
-		os.Unsetenv("ACCESS_KEY")
-	}
-	if *secretkey == "" && os.Getenv("SECRET_KEY") != "" {
-		*secretkey = os.Getenv("SECRET_KEY")
-		os.Unsetenv("SECRET_KEY")
-	}
-	storeConf := &vfs.StorageConfig{
-		Name:      *storageName,
-		Endpoint:  *endpoint,
-		AccessKey: *accesskey,
-		SecretKey: *secretkey,
-	}
-	if storeConf.Name == "file" && storeConf.Endpoint == "" {
-		storeConf.Endpoint = *localDir
-		storeConf.AccessKey = *reqDelay
-		storeConf.SecretKey = fmt.Sprintf("%.3f", *diskFailRatio)
-	}
-	object.UserAgent = "JuiceFS-CE-" + Build()
-	blob := createStorage(storeConf)
-	logger.Infof("Data uses %s", blob)
-	if *test {
-		// if err := obj.DoTesting(blob); err != nil {
-		// 	logger.Fatalf("Storage %s is not configured correctly: %s", blob, err)
-		// }
-		os.Exit(0)
+	if c.Bool("trace") {
+		utils.SetLogLevel(logrus.TraceLevel)
+	} else if c.Bool("debug") {
+		utils.SetLogLevel(logrus.DebugLevel)
+	} else if c.Bool("quiet") {
+		utils.SetLogLevel(logrus.ErrorLevel)
+		utils.InitLoggers(!c.Bool("nosyslog"))
 	}
 
-	*objectSize = fixObjectSize(*objectSize)
-	if *objectSize != 4096 {
-		logger.Infof("files is splitted into objects up to %d KB", *objectSize)
+	logger.Infof("Meta address: %s", c.String("meta"))
+	var rc = redis.RedisConfig{Retries: 10}
+	m := redis.NewRedisMeta(c.String("meta"), &rc)
+	format, err := m.Load()
+	if err != nil {
+		logger.Fatalf("load setting: %s", err)
 	}
-	mode, _ := strconv.ParseUint(*cacheMode, 8, 32)
+
 	chunkConf := chunk.Config{
-		CacheDir:       *cacheDir,
-		CacheSize:      *cacheSize,
-		FreeSpace:      float32(*freeSpace),
-		CacheMode:      os.FileMode(mode),
-		CacheFullBlock: !*cachePartialOnly,
+		PageSize: format.BlockSize * 1024,
+		Compress: format.Compression,
+
+		GetTimeout:  time.Second * time.Duration(c.Int("getTimeout")),
+		PutTimeout:  time.Second * time.Duration(c.Int("putTimeout")),
+		MaxUpload:   c.Int("maxUpload"),
+		AsyncUpload: c.Bool("writeback"),
+		Prefetch:    c.Int("prefetch"),
+		BufferSize:  c.Int("bufferSize") << 20,
+
+		CacheDir:       c.String("cacheDir"),
+		CacheSize:      int64(c.Int("cacheSize")),
+		FreeSpace:      float32(c.Float64("freeRatio")),
+		CacheMode:      os.FileMode(0600),
+		CacheFullBlock: !c.Bool("partialOnly"),
 		AutoCreate:     true,
-		Compress:       *compress,
-		MaxUpload:      *maxUpload,
-		AsyncUpload:    *writeback,
-		Partitions:     *partitions,
-		Prefetch:       *prefetch,
-		PageSize:       *objectSize * 1024,
-		BufferSize:     *bufferSize << 20,
-		Readahead:      *readahead << 20,
-		GetTimeout:     time.Second * time.Duration(*getTimeout),
-		PutTimeout:     time.Second * time.Duration(*putTimeout),
 	}
+	blob := createStorage(format)
+	logger.Infof("Data use %s", blob)
+
 	store := chunk.NewCachedStore(blob, chunkConf)
 	m.OnMsg(meta.CHUNK_DEL, meta.MsgCallback(func(args ...interface{}) error {
 		chunkid := args[0].(uint64)
@@ -216,40 +447,29 @@ func main() {
 		return store.Remove(chunkid, int(length))
 	}))
 
-	*mountpoint, _ = filepath.Abs(*mountpoint)
+	mp, _ := filepath.Abs(c.String("m"))
 	conf := &vfs.Config{
-		Version:    Build(),
-		Mountpoint: *mountpoint,
 		Meta: &meta.Config{
-			IORetries: *ioretries,
+			IORetries: 10,
 		},
-		Primary: storeConf,
-		Chunk:   &chunkConf,
+		Version:    Build(),
+		Mountpoint: mp,
+		Primary: &vfs.StorageConfig{
+			Name:      format.Storage,
+			Endpoint:  format.Bucket,
+			AccessKey: format.AccessKey,
+			SecretKey: format.AccessKey,
+		},
+		Chunk: &chunkConf,
 	}
 	vfs.Init(conf, m, store)
 
-	installHandler()
-	logger.Infof("mount juicefs at %s", *mountpoint)
-	err := fuse.Main(conf, *fuseopts, *attrcacheto, *entrycacheto, *direntrycacheto)
+	installHandler(mp)
+	logger.Infof("mount volume %s at %s", format.Volume, mp)
+	err = fuse.Main(conf, c.String("o"), c.Float64("attrcacheto"), c.Float64("entrycacheto"), c.Float64("direntrycacheto"))
 	if err != nil {
 		logger.Errorf("%s", err)
 		os.Exit(1)
 	}
-}
-
-func createStorage(conf *vfs.StorageConfig) object.ObjectStorage {
-	blob := object.CreateStorage(strings.ToLower(conf.Name), conf.Endpoint, conf.AccessKey, conf.SecretKey)
-	if blob == nil {
-		logger.Fatalf("Invalid storage type: %s", conf.Name)
-	}
-	if conf.Name != "file" && conf.Name != "mem" {
-		uri, _ := url.ParseRequestURI(conf.Endpoint)
-		if uri.Path != "" && uri.Path != "/" {
-			if !strings.HasSuffix(uri.Path, "/") {
-				uri.Path += "/"
-			}
-			blob = object.WithPrefix(blob, uri.Path)
-		}
-	}
-	return blob
+	return nil
 }

@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	. "jfs/meta"
 	"jfs/utils"
@@ -81,6 +82,37 @@ func NewRedisMeta(url string, conf *RedisConfig) Meta {
 	go m.refreshSession()
 	go m.cleanupChunks()
 	return m
+}
+
+func (r *redisMeta) Init(format Format) error {
+	body, err := r.rdb.Get(c, "setting").Result()
+	if err != nil && err != redis.Nil {
+		return err
+	}
+	if err == nil {
+		return fmt.Errorf("this volume is already formated as: %s", body)
+	}
+	data, err := json.MarshalIndent(format, "", "")
+	if err != nil {
+		logger.Fatalf("json: %s", err)
+	}
+	return r.rdb.Set(c, "setting", data, 0).Err()
+}
+
+func (r *redisMeta) Load() (*Format, error) {
+	body, err := r.rdb.Get(c, "setting").Result()
+	if err == redis.Nil {
+		return nil, fmt.Errorf("no volume found")
+	}
+	if err != nil {
+		return nil, err
+	}
+	var format Format
+	err = json.Unmarshal([]byte(body), &format)
+	if err != nil {
+		return nil, fmt.Errorf("json: %s", err)
+	}
+	return &format, nil
 }
 
 func (r *redisMeta) OnMsg(mtype uint32, cb MsgCallback) {
