@@ -5,14 +5,6 @@ go:
   - "1.13"
 env:
   - DURATION=10 TEST_SUITE=all
-jobs:
-  include:
-    - if: type != cron
-      env: DURATION=10 TEST_SUITE=all
-    - if: type = cron
-      env: DURATION=300 TEST_SUITE=fsx
-    - if: type = cron
-      env: DURATION=300 TEST_SUITE=fsracer
 addons:
   apt:
     packages:
@@ -23,6 +15,7 @@ install: true
 before_script:
   - export GO111MODULE=on
   - make
+  - go test ./...
   - sudo make -C fstests setup
 script:
   - sudo DURATION=${DURATION} make -C fstests ${TEST_SUITE}

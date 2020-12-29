@@ -123,7 +123,7 @@ func main() {
 					&cli.StringFlag{
 						Name:    "meta",
 						Aliases: []string{"m"},
-						Value:   "redis://localhost:6379/1",
+						Value:   "redis://127.0.0.1:6379/1",
 						Usage:   "Address for metadata",
 					},
 					&cli.IntFlag{
@@ -165,7 +165,7 @@ func main() {
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:  "meta",
-						Value: "redis://localhost:6379/1",
+						Value: "redis://127.0.0.1:6379/1",
 						Usage: "Address for metadata",
 					},
 					&cli.StringFlag{
@@ -381,8 +381,11 @@ func format(c *cli.Context) error {
 	}
 
 	var rc = redis.RedisConfig{Retries: 10}
-	m := redis.NewRedisMeta(c.String("meta"), &rc)
-	err := m.Init(format)
+	m, err := redis.NewRedisMeta(c.String("meta"), &rc)
+	if err != nil {
+		logger.Fatalf("Meta is not available: %s", err)
+	}
+	err = m.Init(format)
 	if err != nil {
 		logger.Fatalf("format: %s", err)
 		return err
@@ -413,7 +416,10 @@ func mount(c *cli.Context) error {
 
 	logger.Infof("Meta address: %s", c.String("meta"))
 	var rc = redis.RedisConfig{Retries: 10}
-	m := redis.NewRedisMeta(c.String("meta"), &rc)
+	m, err := redis.NewRedisMeta(c.String("meta"), &rc)
+	if err != nil {
+		logger.Fatalf("Meta is not available: %s", err)
+	}
 	format, err := m.Load()
 	if err != nil {
 		logger.Fatalf("load setting: %s", err)

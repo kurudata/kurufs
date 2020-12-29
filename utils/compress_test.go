@@ -30,16 +30,8 @@ func TestUncompressed(t *testing.T) {
 	testCompress(t, NewCompressor("none"))
 }
 
-func TestZstd0(t *testing.T) {
-	testCompress(t, NewCompressor("zstd0"))
-}
-
 func TestZstd(t *testing.T) {
 	testCompress(t, NewCompressor("zstd"))
-}
-
-func TestGoLZ4(t *testing.T) {
-	testCompress(t, NewCompressor("LZ4"))
 }
 
 func benchmarkDecompress(b *testing.B, comp Compressor) {
@@ -71,16 +63,8 @@ func benchmarkDecompress(b *testing.B, comp Compressor) {
 	}
 }
 
-func BenchmarkDecompressZstd0(b *testing.B) {
-	benchmarkDecompress(b, NewCompressor("zstd0"))
-}
-
 func BenchmarkDecompressZstd(b *testing.B) {
 	benchmarkDecompress(b, NewCompressor("zstd"))
-}
-
-func BenchmarkDecompressGoLZ4Stream(b *testing.B) {
-	benchmarkDecompress(b, NewCompressor("lz4stream"))
 }
 
 func BenchmarkDecompressGoLZ4(b *testing.B) {
@@ -118,16 +102,10 @@ func benchmarkCompress(b *testing.B, comp Compressor) {
 	}
 }
 
-func BenchmarkCompressZstd0(b *testing.B) {
-	benchmarkCompress(b, NewCompressor("Zstd0"))
-}
-
 func BenchmarkCompressZstd(b *testing.B) {
 	benchmarkCompress(b, NewCompressor("Zstd"))
 }
-func BenchmarkCompressLZ4Stream(b *testing.B) {
-	benchmarkCompress(b, NewCompressor("LZ4Stream"))
-}
+
 func BenchmarkCompressGoLZ4(b *testing.B) {
 	benchmarkCompress(b, NewCompressor("LZ4"))
 }

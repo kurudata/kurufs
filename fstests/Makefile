@@ -13,10 +13,11 @@ fsx: healthcheck secfs.test/tools/bin/fsx
 setup:
 	redis-server &
 	mkdir -p /jfs
-	../jfs -storage mem -o allow_other &
+	../juicefs format -storage mem unittest
+	../juicefs mount -o allow_other &
 
 healthcheck:
-	pgrep jfs
+	pgrep juicefs
 
 secfs.test/tools/bin/fsx: secfs.test
 

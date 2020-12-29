@@ -8,7 +8,11 @@ import (
 
 func TestRedisClient(t *testing.T) {
 	var conf RedisConfig
-	m := NewRedisMeta("redis://127.0.0.1:6379/11", &conf)
+	m, err := NewRedisMeta("redis://127.0.0.1:6379/11", &conf)
+	if err != nil {
+		t.Logf("redis is not available: %s", err)
+		t.Skip()
+	}
 	m.OnMsg(meta.CHUNK_DEL, func(args ...interface{}) error { return nil })
 	ctx := meta.Background
 	var parent, inode meta.Ino

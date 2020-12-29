@@ -2,17 +2,19 @@ package chunk
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/juicedata/juicefs/utils"
 	"github.com/juicedata/juicesync/object"
+	"github.com/sirupsen/logrus"
 )
 
 func testStore(t *testing.T, store ChunkStore) {
+	utils.SetLogLevel(logrus.DebugLevel)
 	writer := store.NewWriter(1)
 	data := []byte("hello world")
 	if n, err := writer.WriteAt(data, 0); n != 11 || err != nil {
@@ -51,34 +53,12 @@ func TestDiskStore(t *testing.T) {
 }
 
 var defaultConf = Config{
-	PageSize:    1024,
-	Partitions:  1,
-	CacheDir:    "/tmp/diskCache",
-	CacheSize:   10,
-	AsyncUpload: false,
-	MaxUpload:   1,
-	UploadLimit: 0,
-	PutTimeout:  time.Second,
-	GetTimeout:  time.Second * 2,
-}
-
-func TestPermissionOfCachedBlock(t *testing.T) {
-	cfg := defaultConf
-	cfg.CacheMode = 0640
-	cfg.CacheDir = "/tmp/testdir"
-	cfg.AutoCreate = true
-	mem := object.CreateStorage("mem", "", "", "")
-	store := NewCachedStore(mem, cfg)
-	testStore(t, store)
-	dirs := []string{cfg.CacheDir, filepath.Join(cfg.CacheDir, "raw"), filepath.Join(cfg.CacheDir, "raw", "chunks")}
-	for _, d := range dirs {
-		st, err := os.Stat(d)
-		if err != nil {
-			t.Errorf("no cache dir %s: %s", d, err)
-		} else if st.Mode()&0777 != 0770 {
-			t.Errorf("mode of %s should be 0770, but got %o", d, st.Mode()&0777)
-		}
-	}
+	PageSize:   1024,
+	CacheDir:   "/tmp/diskCache",
+	CacheSize:  10,
+	MaxUpload:  1,
+	PutTimeout: time.Second,
+	GetTimeout: time.Second * 2,
 }
 
 func TestCachedStore(t *testing.T) {
@@ -87,42 +67,13 @@ func TestCachedStore(t *testing.T) {
 	testStore(t, store)
 }
 
-func TestNotCompressedStore(t *testing.T) {
+func TestUncompressedStore(t *testing.T) {
 	mem := object.CreateStorage("mem", "", "", "")
 	conf := defaultConf
 	conf.Compress = ""
 	conf.CacheSize = 0
 	store := NewCachedStore(mem, conf)
 	testStore(t, store)
-}
-
-func TestPartitionedStore(t *testing.T) {
-	mem := object.CreateStorage("mem", "", "", "")
-	conf := defaultConf
-	conf.Partitions = 10
-	store := NewCachedStore(mem, conf)
-	testStore(t, store)
-}
-
-func TestCachedStoreWithLimit(t *testing.T) {
-	mem := object.CreateStorage("mem", "", "", "")
-	conf := defaultConf
-	conf.UploadLimit = 128
-	store := NewCachedStore(mem, conf)
-	writer := store.NewWriter(1)
-	data := make([]byte, 256)
-	// make them hard to compress
-	for i := range data {
-		data[i] = byte(i)
-	}
-	st := time.Now()
-	if _, err := writer.WriteAt(data, 0); err != nil {
-		t.Error(err)
-	}
-	writer.Finish(len(data))
-	if time.Now().Sub(st) < time.Second {
-		t.Error(fmt.Errorf("Writing too fast: %s", time.Now().Sub(st)))
-	}
 }
 
 func TestAsyncStore(t *testing.T) {
@@ -136,10 +87,9 @@ func TestAsyncStore(t *testing.T) {
 	f.Close()
 	conf.AsyncUpload = true
 	conf.UploadLimit = 0
-	store := NewCachedStore(mem, conf)
+	_ = NewCachedStore(mem, conf)
 	time.Sleep(time.Millisecond * 10) // wait for scan to finish
 	if _, err := mem.Head("chunks/0/0/123_0_4"); err != nil {
 		t.Fatalf("staging object should be upload")
 	}
-	testStore(t, store)
 }

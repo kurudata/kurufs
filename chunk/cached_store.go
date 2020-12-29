@@ -272,7 +272,7 @@ func (c *wChunk) WriteAt(p []byte, off int64) (n int, err error) {
 		indx := c.index(int(off) + n)
 		boff := (int(off) + n) % c.store.conf.PageSize
 		var bs = BLOCK_SIZE
-		if indx > 0 {
+		if indx > 0 || bs > c.store.conf.PageSize {
 			bs = c.store.conf.PageSize
 		}
 		bi := boff / bs

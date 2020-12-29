@@ -28,7 +28,7 @@ func TestExpand(t *testing.T) {
 }
 
 func TestCacheStore(t *testing.T) {
-	s := newCacheStore("/tmp/diskCache", 10240, 3, 1, &defaultConf)
+	s := newCacheStore("/tmp/diskCache1", 10240, 3, 1, &defaultConf)
 	key := "chunks/1"
 	s.stage(key, []byte{1}, true)
 	f, err := s.load(key)

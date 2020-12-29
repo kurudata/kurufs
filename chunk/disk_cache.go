@@ -48,7 +48,7 @@ func newCacheStore(dir string, cacheSize int64, limit, pendingPages int, config 
 		config.CacheMode = 0600 // only owner can read/write cache
 	}
 	if config.FreeSpace == 0.0 {
-		config.FreeSpace = 0.2 // 20%
+		config.FreeSpace = 0.1 // 10%
 	}
 	c := &cacheStore{
 		dir:       dir,

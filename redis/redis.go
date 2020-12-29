@@ -61,10 +61,10 @@ type msgCallbacks struct {
 	callbacks map[uint32]MsgCallback
 }
 
-func NewRedisMeta(url string, conf *RedisConfig) Meta {
+func NewRedisMeta(url string, conf *RedisConfig) (Meta, error) {
 	opt, err := redis.ParseURL(url)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("parse %s: %s", url, err)
 	}
 	m := &redisMeta{
 		conf:         conf,
@@ -77,12 +77,12 @@ func NewRedisMeta(url string, conf *RedisConfig) Meta {
 	}
 	m.sid, err = m.rdb.Incr(c, "nextsession").Result()
 	if err != nil {
-		logger.Fatalf("create session: %s", err)
+		return nil, fmt.Errorf("create session: %s", err)
 	}
 	logger.Debugf("session is is %d", m.sid)
 	go m.refreshSession()
 	go m.cleanupChunks()
-	return m
+	return m, nil
 }
 
 func (r *redisMeta) Init(format Format) error {
@@ -135,7 +135,7 @@ func (r *redisMeta) newMsg(mid uint32, args ...interface{}) error {
 var c = context.TODO()
 
 func (r *redisMeta) sessionKey(sid int64) string {
-	return fmt.Sprint("session%d", r.sid)
+	return fmt.Sprintf("session%d", r.sid)
 }
 
 func (r *redisMeta) symKey(inode Ino) string {
