@@ -17,8 +17,6 @@ package utils
 
 import (
 	"fmt"
-	"io"
-	"io/ioutil"
 	"strings"
 
 	"github.com/DataDog/zstd"
@@ -32,7 +30,6 @@ type Compressor interface {
 	CompressBound(int) int
 	Compress(dst, src []byte) (int, error)
 	Decompress(dst, src []byte) (int, error)
-	NewReader(r io.Reader) io.ReadCloser
 }
 
 func NewCompressor(algr string) Compressor {
@@ -65,7 +62,6 @@ func (n noOp) Decompress(dst, src []byte) (int, error) {
 	copy(dst, src)
 	return len(src), nil
 }
-func (n noOp) NewReader(r io.Reader) io.ReadCloser { return ioutil.NopCloser(r) }
 
 type ZStandard struct {
 	level int
@@ -93,9 +89,6 @@ func (n *ZStandard) Decompress(dst, src []byte) (int, error) {
 	}
 	return len(d), err
 }
-func (n *ZStandard) NewReader(r io.Reader) io.ReadCloser {
-	return zstd.NewReader(r)
-}
 
 type LZ4 struct{}
 
@@ -106,7 +99,4 @@ func (l LZ4) Compress(dst, src []byte) (int, error) {
 }
 func (l LZ4) Decompress(dst, src []byte) (int, error) {
 	return lz4.DecompressSafe(src, dst)
-}
-func (l LZ4) NewReader(r io.Reader) io.ReadCloser {
-	panic("not supported")
 }
