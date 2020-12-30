@@ -346,7 +346,7 @@ func Main(conf *vfs.Config, options string, attrcacheto_, entrycacheto_, direntr
 		} else if n == "nonempty" {
 		} else if n == "debug" {
 			opt.Debug = true
-		} else {
+		} else if strings.TrimSpace(n) != "" {
 			opt.Options = append(opt.Options, n)
 		}
 	}

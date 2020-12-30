@@ -117,10 +117,6 @@ func main() {
 				Usage: "format a volume",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:  "name",
-						Usage: "Volume name",
-					},
-					&cli.StringFlag{
 						Name:    "meta",
 						Aliases: []string{"m"},
 						Value:   "redis://127.0.0.1:6379/1",
@@ -368,7 +364,7 @@ func format(c *cli.Context) error {
 		Compression: c.String("compress"),
 	}
 
-	if format.Storage == "file" && strings.HasSuffix(format.Bucket, "/") {
+	if format.Storage == "file" && !strings.HasSuffix(format.Bucket, "/") {
 		format.Bucket += "/"
 	}
 

@@ -1,5 +1,7 @@
 # JuiceFS
 
+[![Build Status](https://travis-ci.com/juicedata/juicefs.svg?token=jKSPwswpc2ph4uMtwpHa&branch=main)](https://travis-ci.org/juicedata/juicefs)
+
 ## How to Build
 
 ```bash
@@ -14,13 +16,18 @@ go get github.com/juicedata/juicefs.git
 1. Start redis server:
 
     ```bash
-    redis-server
+    brew services run redis
     ```
+1. Format
 
+    ```bash
+    ./juicefs format dev
+    ```
+	
 1. Mount:
 
     ```bash
-    ./jfs
+    ./juicefs mount
     ```
 
 ### Troubleshooting
