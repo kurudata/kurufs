@@ -276,10 +276,7 @@ func createStorage(fmt *meta.Format) object.ObjectStorage {
 	if blob == nil {
 		logger.Fatalf("Invalid storage type: %s", fmt.Storage)
 	}
-	if fmt.Storage != "file" && fmt.Storage != "mem" {
-		blob = object.WithPrefix(blob, fmt.Volume)
-	}
-	return blob
+	return object.WithPrefix(blob, fmt.Volume+"/")
 }
 
 var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
