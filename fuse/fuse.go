@@ -350,9 +350,10 @@ func Main(conf *vfs.Config, options string, attrcacheto_, entrycacheto_, direntr
 	opt.MaxWrite = 1 << 20
 	opt.MaxReadAhead = 1 << 20
 	opt.DirectMount = true
-	opt.AllowOther = true
+	opt.AllowOther = os.Getuid() == 0
 	for _, n := range strings.Split(options, ",") {
 		if n == "allow_other" || n == "allow_root" {
+			opt.AllowOther = true
 		} else if strings.HasPrefix(n, "fsname=") {
 			opt.FsName = n[len("fsname="):]
 			if runtime.GOOS == "darwin" {
