@@ -73,11 +73,10 @@ func doTesting(store object.ObjectStorage, key string, data []byte) error {
 		if strings.Contains(err.Error(), "Access Denied") {
 			return fmt.Errorf("Failed to put: %s", err)
 		}
-		// TODO: upgrade juicesync
-		// if err2 := store.Create(); err2 != nil {
-		// 	return fmt.Errorf("Failed to create %s: %s,  previous error: %s\nplease create bucket %s manually, then mount again",
-		// 		store, err2, err, store)
-		// }
+		if err2 := store.Create(); err2 != nil {
+			return fmt.Errorf("Failed to create %s: %s,  previous error: %s\nplease create bucket %s manually, then format again",
+				store, err2, err, store)
+		}
 		if err := store.Put(key, bytes.NewReader(data)); err != nil {
 			return fmt.Errorf("Failed to put: %s", err)
 		}
