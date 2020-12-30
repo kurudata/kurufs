@@ -27,7 +27,10 @@ import (
 var logger = utils.GetLogger("juicefs")
 
 func main() {
-
+	cli.VersionFlag = &cli.BoolFlag{
+		Name: "version", Aliases: []string{"V"},
+		Usage: "print only the version",
+	}
 	app := &cli.App{
 		Name:      "juicefs",
 		Usage:     "A POSIX filesystem built on redis and object storage.",
@@ -35,8 +38,9 @@ func main() {
 		Copyright: "AGPLv3",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
-				Name:  "debug",
-				Usage: "enable debug log",
+				Name:    "debug",
+				Aliases: []string{"v"},
+				Usage:   "enable debug log",
 			},
 			&cli.BoolFlag{
 				Name:    "quiet",
