@@ -17,7 +17,6 @@ package chunk
 
 import (
 	"os"
-	"strconv"
 	"testing"
 	"time"
 )
@@ -39,32 +38,6 @@ func TestExpand(t *testing.T) {
 	if len(rs) != 3 || rs[0] != "/tmp/aaa1/jfscache/jfs" {
 		t.Errorf("expand: %v", rs)
 		t.FailNow()
-	}
-}
-
-func TestCacheStore(t *testing.T) {
-	s := newCacheStore("/tmp/diskCache1", 10240, 3, 1, &defaultConf)
-	key := "chunks/1"
-	s.stage(key, []byte{1}, true)
-	f, err := s.load(key)
-	if err != nil {
-		t.Errorf("load %s: %s", key, err)
-		t.FailNow()
-	} else {
-		f.Close()
-		os.Remove(s.stagePath(key))
-		s.uploaded(key, 1)
-	}
-	for i := 0; i < 10; i++ {
-		s.add(strconv.Itoa(i), 10, uint32(time.Now().Unix()))
-		if len(s.keys) > 2 {
-			t.Errorf("should not cache more than 2 items, but got %d", len(s.keys))
-			t.FailNow()
-		}
-		if s.used > 10240 {
-			t.Errorf("should not cache more than 10240 bytes, but got %d", s.used)
-			t.FailNow()
-		}
 	}
 }
 
