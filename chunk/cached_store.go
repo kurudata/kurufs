@@ -149,7 +149,7 @@ func (c *rChunk) ReadAt(ctx context.Context, page *Page, off int) (n int, err er
 				return io.ReadFull(in, p)
 			}
 		}
-		block, err := c.store.group.Do(key, func() (*Page, error) {
+		block, err := c.store.group.Execute(key, func() (*Page, error) {
 			tmp := page
 			if boff > 0 || len(p) < blockSize {
 				tmp = NewOffPage(blockSize)
@@ -580,7 +580,7 @@ type cachedStore struct {
 	bcache        CacheManager
 	fetcher       *prefetcher
 	conf          Config
-	group         *Group
+	group         *Controller
 	currentUpload chan bool
 	pendingKeys   map[string]bool
 	pendingMutex  sync.Mutex
@@ -701,7 +701,7 @@ func NewCachedStore(storage object.ObjectStorage, config Config) ChunkStore {
 		seekable:      compressor.CompressBound(0) == 0,
 		bcache:        newCacheManager(&config),
 		pendingKeys:   make(map[string]bool),
-		group:         &Group{},
+		group:         &Controller{},
 	}
 	if config.CacheSize == 0 {
 		config.Prefetch = 0 // disable prefetch if cache is disabled

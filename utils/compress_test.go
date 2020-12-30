@@ -82,10 +82,6 @@ func BenchmarkDecompressZstd(b *testing.B) {
 	benchmarkDecompress(b, NewCompressor("zstd"))
 }
 
-func BenchmarkDecompressGoLZ4(b *testing.B) {
-	benchmarkDecompress(b, NewCompressor("lz4"))
-}
-
 func BenchmarkDecompressLZ4(b *testing.B) {
 	benchmarkDecompress(b, LZ4{})
 }
@@ -121,9 +117,6 @@ func BenchmarkCompressZstd(b *testing.B) {
 	benchmarkCompress(b, NewCompressor("Zstd"))
 }
 
-func BenchmarkCompressGoLZ4(b *testing.B) {
-	benchmarkCompress(b, NewCompressor("LZ4"))
-}
 func BenchmarkCompressCLZ4(b *testing.B) {
 	benchmarkCompress(b, LZ4{})
 }

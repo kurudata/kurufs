@@ -23,12 +23,12 @@ import (
 )
 
 func TestSigleFlight(t *testing.T) {
-	g := &Group{}
+	g := &Controller{}
 	gp := &sync.WaitGroup{}
 	for i := 0; i < 100000; i++ {
 		gp.Add(1)
 		go func(k int) {
-			p, _ := g.Do(strconv.Itoa(k/1000), func() (*Page, error) {
+			p, _ := g.Execute(strconv.Itoa(k/1000), func() (*Page, error) {
 				time.Sleep(time.Microsecond * 1000)
 				return NewOffPage(100), nil
 			})
