@@ -1,3 +1,18 @@
+/*
+ * JuiceFS, Copyright (C) 2020 Juicedata, Inc.
+ *
+ * This program is free software: you can use, redistribute, and/or modify
+ * it under the terms of the GNU Affero General Public License, version 3
+ * or later ("AGPL"), as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package vfs
 
 import (
@@ -77,7 +92,7 @@ func Lookup(ctx Context, parent Ino, name string) (entry *meta.Entry, err syscal
 		return
 	}
 	if attr.Typ == meta.TYPE_FILE {
-		maxfleng := writer.GetLen(inode)
+		maxfleng := writer.GetLength(inode)
 		if maxfleng > attr.Length {
 			attr.Length = maxfleng
 		}
@@ -100,7 +115,7 @@ func GetAttr(ctx Context, ino Ino, opened uint8) (entry *meta.Entry, err syscall
 		return
 	}
 	if attr.Typ == meta.TYPE_FILE {
-		maxfleng := writer.GetLen(ino)
+		maxfleng := writer.GetLength(ino)
 		if maxfleng > attr.Length {
 			attr.Length = maxfleng
 		}
@@ -297,7 +312,7 @@ func Opendir(ctx Context, ino Ino) (fh uint64, err syscall.Errno) {
 func UpdateEntry(e *meta.Entry) {
 	attr := e.Attr
 	if attr.Full && attr.Typ == meta.TYPE_FILE {
-		maxfleng := writer.GetLen(e.Inode)
+		maxfleng := writer.GetLength(e.Inode)
 		if maxfleng > attr.Length {
 			attr.Length = maxfleng
 		}
@@ -431,7 +446,7 @@ func Open(ctx Context, ino Ino, flags uint32) (entry *meta.Entry, fh uint64, err
 		return
 	}
 
-	maxfleng := writer.GetLen(ino)
+	maxfleng := writer.GetLength(ino)
 	if maxfleng > attr.Length {
 		attr.Length = maxfleng
 	}

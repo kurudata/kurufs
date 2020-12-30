@@ -1,3 +1,18 @@
+/*
+ * JuiceFS, Copyright (C) 2020 Juicedata, Inc.
+ *
+ * This program is free software: you can use, redistribute, and/or modify
+ * it under the terms of the GNU Affero General Public License, version 3
+ * or later ("AGPL"), as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package vfs
 
 import (
@@ -19,14 +34,14 @@ type FileWriter interface {
 	Write(ctx meta.Context, offset uint64, data []byte) syscall.Errno
 	Flush(ctx meta.Context) syscall.Errno
 	Close(ctx meta.Context) syscall.Errno
-	GetLen() uint64
+	GetLength() uint64
 	Truncate(maxfleng uint64)
 }
 
 type DataWriter interface {
 	Open(inode Ino, fleng uint64) FileWriter
 	Flush(ctx meta.Context, inode Ino) syscall.Errno
-	GetLen(inode Ino) uint64
+	GetLength(inode Ino) uint64
 	Truncate(inode Ino, maxfleng uint64)
 }
 
@@ -341,7 +356,7 @@ func (f *fileWriter) Close(ctx meta.Context) syscall.Errno {
 	return f.Flush(ctx)
 }
 
-func (f *fileWriter) GetLen() uint64 {
+func (f *fileWriter) GetLength() uint64 {
 	f.Lock()
 	defer f.Unlock()
 	return f.length
@@ -445,10 +460,10 @@ func (w *dataWriter) Flush(ctx meta.Context, inode Ino) syscall.Errno {
 	return 0
 }
 
-func (w *dataWriter) GetLen(inode Ino) uint64 {
+func (w *dataWriter) GetLength(inode Ino) uint64 {
 	f := w.find(inode)
 	if f != nil {
-		return f.GetLen()
+		return f.GetLength()
 	}
 	return 0
 }
