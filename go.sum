@@ -80,6 +80,8 @@ github.com/hashicorp/golang-lru v0.5.0/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
 github.com/huaweicloud/huaweicloud-sdk-go-obs v0.0.0-20190127152727-3a9e1f8023d5 h1:9cpB9emicKlvo6mRm/fYEcTkiM8SPgJ+gTc/GXQH6V8=
 github.com/huaweicloud/huaweicloud-sdk-go-obs v0.0.0-20190127152727-3a9e1f8023d5/go.mod h1:l7VUhRbTKCzdOacdT4oWCwATKyvZqUOlOqr0Ous3k4s=
+github.com/hungys/go-lz4 v0.0.0-20170805124057-19ff7f07f099 h1:heHZCso/ytvpYr+hp2cDxlZfA/jTw46aHSvT9kZnJ7o=
+github.com/hungys/go-lz4 v0.0.0-20170805124057-19ff7f07f099/go.mod h1:h44tqw4M3GN0Woo9KBStxJxm8huNi+9+tOHoeqSvhaY=
 github.com/jcmturner/gofork v0.0.0-20180107083740-2aebee971930 h1:v4CYlQ+HeysPHsr2QFiEO60gKqnvn1xwvuKhhAhuEkk=
 github.com/jcmturner/gofork v0.0.0-20180107083740-2aebee971930/go.mod h1:MK8+TM0La+2rjBD4jE12Kj1pCCxK7d2LK/UM3ncEo0o=
 github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8 h1:12VvqtR6Aowv3l/EQUlocDHW2Cp4G9WJVH7uyH8QFJE=

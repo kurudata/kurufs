@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/DataDog/zstd"
+	"github.com/hungys/go-lz4"
 )
 
 const ZSTD_LEVEL = 1 // fastest
@@ -99,12 +100,12 @@ func (n *ZStandard) NewReader(r io.Reader) io.ReadCloser {
 type LZ4 struct{}
 
 func (l LZ4) Name() string               { return "LZ4" }
-func (l LZ4) CompressBound(size int) int { return LZ4_compressBound(size) }
+func (l LZ4) CompressBound(size int) int { return lz4.CompressBound(size) }
 func (l LZ4) Compress(dst, src []byte) (int, error) {
-	return int(LZ4_compress_default(src, dst)), nil
+	return lz4.CompressDefault(src, dst)
 }
 func (l LZ4) Decompress(dst, src []byte) (int, error) {
-	return LZ4_decompress_fast(src, dst)
+	return lz4.DecompressSafe(src, dst)
 }
 func (l LZ4) NewReader(r io.Reader) io.ReadCloser {
 	panic("not supported")

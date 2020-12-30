@@ -7,6 +7,7 @@ require (
 	github.com/go-redis/redis/v8 v8.4.0
 	github.com/google/gops v0.3.13
 	github.com/hanwen/go-fuse/v2 v2.0.3
+	github.com/hungys/go-lz4 v0.0.0-20170805124057-19ff7f07f099
 	github.com/juicedata/juicesync v0.5.1
 	github.com/sirupsen/logrus v1.7.0
 	github.com/urfave/cli/v2 v2.3.0
