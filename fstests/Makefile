@@ -14,7 +14,7 @@ setup:
 	redis-server &
 	mkdir -p /jfs
 	../juicefs format -storage mem unittest
-	../juicefs mount -o allow_other &
+	../juicefs mount /jfs &
 
 healthcheck:
 	pgrep juicefs

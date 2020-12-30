@@ -27,7 +27,7 @@ go get github.com/juicedata/juicefs.git
 1. Mount:
 
     ```bash
-    ./juicefs mount
+    ./juicefs mount ~/jfs
     ```
 
 ### Troubleshooting
