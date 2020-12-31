@@ -47,6 +47,14 @@ const (
 	SET_ATTR_CTIME
 	SET_ATTR_ATIME_NOW
 	SET_ATTR_MTIME_NOW
+
+	// fallocate
+	FALLOC_KEEP_SIZE      = 0x01
+	FALLOC_PUNCH_HOLE     = 0x02
+	FALLOC_NO_HIDE_STALE  = 0x04 // reserved
+	FALLOC_COLLAPSE_RANGE = 0x08
+	FALLOC_ZERO_RANGE     = 0x10
+	FALLOC_INSERT_RANGE   = 0x20
 )
 
 type MsgCallback func(...interface{}) error
@@ -117,6 +125,7 @@ type Meta interface {
 	GetAttr(ctx Context, inode Ino, opened uint8, attr *Attr) syscall.Errno
 	SetAttr(ctx Context, inode Ino, opened uint8, set uint16, sggidclearmode uint8, attr *Attr) syscall.Errno
 	Truncate(ctx Context, inode Ino, flags uint8, attrlength uint64, attr *Attr) syscall.Errno
+	Fallocate(ctx Context, inode Ino, mode uint8, off uint64, size uint64) syscall.Errno
 	ReadLink(ctx Context, inode Ino, path *[]byte) syscall.Errno
 	Symlink(ctx Context, parent Ino, name string, path string, inode *Ino, attr *Attr) syscall.Errno
 	Mknod(ctx Context, parent Ino, name string, _type uint8, mode uint16, cumask uint16, rdev uint32, inode *Ino, attr *Attr) syscall.Errno

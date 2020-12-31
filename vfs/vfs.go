@@ -701,8 +701,7 @@ func Fallocate(ctx Context, ino Ino, mode uint8, off, length int64, fh uint64) (
 	defer h.Wunlock()
 	defer h.removeOp(ctx)
 
-	// FIXME
-	// err = m.Fallocate(ctx, ino, mode, uint64(off), uint64(length))
+	err = m.Fallocate(ctx, ino, mode, uint64(off), uint64(length))
 	return
 }
 

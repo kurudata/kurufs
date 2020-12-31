@@ -250,12 +250,12 @@ func (fs *JFS) Fsync(cancel <-chan struct{}, in *fuse.FsyncIn) (code fuse.Status
 	return fuse.Status(err)
 }
 
-// func (fs *JFS) Fallocate(cancel <-chan struct{}, in *fuse.FallocateIn) (code fuse.Status) {
-// 	ctx := newContext(cancel, &in.InHeader)
-// 	defer releaseContext(ctx)
-// 	err := vfs.Fallocate(ctx, Ino(in.NodeId), uint8(in.Mode), int64(in.Offset), int64(in.Length), in.Fh)
-// 	return fuse.Status(err)
-// }
+func (fs *JFS) Fallocate(cancel <-chan struct{}, in *fuse.FallocateIn) (code fuse.Status) {
+	ctx := newContext(cancel, &in.InHeader)
+	defer releaseContext(ctx)
+	err := vfs.Fallocate(ctx, Ino(in.NodeId), uint8(in.Mode), int64(in.Offset), int64(in.Length), in.Fh)
+	return fuse.Status(err)
+}
 
 func (fs *JFS) OpenDir(cancel <-chan struct{}, in *fuse.OpenIn, out *fuse.OpenOut) (status fuse.Status) {
 	ctx := newContext(cancel, &in.InHeader)

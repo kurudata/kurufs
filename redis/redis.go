@@ -346,6 +346,9 @@ func (r *redisMeta) Truncate(ctx Context, inode Ino, flags uint8, length uint64,
 			return err
 		}
 		r.parseAttr(a, &t)
+		if t.Typ != TYPE_FILE {
+			return syscall.EPERM
+		}
 		old := t.Length
 		t.Length = length
 		now := time.Now()
@@ -374,6 +377,78 @@ func (r *redisMeta) Truncate(ctx Context, inode Ino, flags uint8, length uint64,
 			}
 			go r.deleteChunks(inode, length, old)
 		}
+		return err
+	}, r.inodeKey(inode))
+}
+
+func (r *redisMeta) Fallocate(ctx Context, inode Ino, mode uint8, off uint64, size uint64) syscall.Errno {
+	if mode&FALLOC_COLLAPSE_RANGE != 0 && mode != FALLOC_COLLAPSE_RANGE {
+		return syscall.EINVAL
+	}
+	if mode&FALLOC_INSERT_RANGE != 0 && mode != FALLOC_INSERT_RANGE {
+		return syscall.EINVAL
+	}
+	if mode == FALLOC_INSERT_RANGE || mode == FALLOC_COLLAPSE_RANGE {
+		return syscall.ENOTSUP
+	}
+	if mode&FALLOC_PUNCH_HOLE != 0 && mode&FALLOC_KEEP_SIZE == 0 {
+		return syscall.EINVAL
+	}
+	if size == 0 {
+		return syscall.EINVAL
+	}
+	return r.txn(func(tx *redis.Tx) error {
+		var t Attr
+		a, err := tx.Get(c, r.inodeKey(inode)).Bytes()
+		if err != nil {
+			return err
+		}
+		r.parseAttr(a, &t)
+		if t.Typ == TYPE_FIFO {
+			return syscall.EPIPE
+		}
+		if t.Typ != TYPE_FILE {
+			return syscall.EPERM
+		}
+		length := t.Length
+		if off+size > t.Length {
+			if mode&FALLOC_KEEP_SIZE == 0 {
+				length = off + size
+			}
+		}
+
+		old := t.Length
+		t.Length = length
+		now := time.Now()
+		t.Ctime = now.Unix()
+		t.Ctimensec = uint32(now.Nanosecond())
+		_, err = tx.TxPipelined(c, func(pipe redis.Pipeliner) error {
+			pipe.Set(c, r.inodeKey(inode), r.marshal(&t), 0)
+			if mode&(FALLOC_ZERO_RANGE|FALLOC_PUNCH_HOLE) != 0 {
+				if off+size > old {
+					size = old - off
+				}
+				for size > 0 {
+					indx := uint32(off / CHUNKSIZE)
+					coff := off % CHUNKSIZE
+					l := size
+					if coff+size > CHUNKSIZE {
+						l = CHUNKSIZE - coff
+					}
+					w := utils.NewBuffer(24)
+					w.Put32(uint32(coff))
+					w.Put64(0)
+					w.Put32(0)
+					w.Put32(0)
+					w.Put32(uint32(l))
+					pipe.RPush(c, r.chunkKey(inode, indx), w.Bytes())
+					off += l
+					size -= l
+				}
+			}
+			pipe.IncrBy(c, usedSpace, align4K(length)-align4K(old))
+			return nil
+		})
 		return err
 	}, r.inodeKey(inode))
 }
