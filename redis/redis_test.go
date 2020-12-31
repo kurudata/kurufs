@@ -32,7 +32,7 @@ func TestRedisClient(t *testing.T) {
 	ctx := meta.Background
 	var parent, inode meta.Ino
 	var attr = &meta.Attr{}
-	m.GetAttr(ctx, 1, 0, attr) // init
+	m.GetAttr(ctx, 1, attr) // init
 	if st := m.Mkdir(ctx, 1, "d", 0640, 022, 0, &parent, attr); st != 0 {
 		t.Fatalf("mkdir %s", st)
 	}
@@ -49,10 +49,10 @@ func TestRedisClient(t *testing.T) {
 	}
 	attr.Mtime = 2
 	attr.Uid = 1
-	if st := m.SetAttr(ctx, inode, 0, meta.SET_ATTR_MTIME|meta.SET_ATTR_UID, 0, attr); st != 0 {
+	if st := m.SetAttr(ctx, inode, meta.SET_ATTR_MTIME|meta.SET_ATTR_UID, 0, attr); st != 0 {
 		t.Fatalf("setattr file %s", st)
 	}
-	if st := m.GetAttr(ctx, inode, 0, attr); st != 0 {
+	if st := m.GetAttr(ctx, inode, attr); st != 0 {
 		t.Fatalf("getattr file %s", st)
 	}
 	if attr.Mtime != 2 || attr.Uid != 1 {
@@ -99,6 +99,21 @@ func TestRedisClient(t *testing.T) {
 	}
 	if len(chunks) != 3 || chunks[1].Chunkid != 0 || chunks[1].Len != 50 || chunks[2].Chunkid != chunkid || chunks[2].Len != 50 {
 		t.Fatalf("chunks: %v", chunks)
+	}
+
+	// xattr
+	if st := m.SetXattr(ctx, inode, "a", []byte("v")); st != 0 {
+		t.Fatalf("setxattr: %s", st)
+	}
+	var value []byte
+	if st := m.GetXattr(ctx, inode, "a", &value); st != 0 || string(value) != "v" {
+		t.Fatalf("getxattr: %s %v", st, value)
+	}
+	if st := m.ListXattr(ctx, inode, &value); st != 0 || string(value) != "a\000" {
+		t.Fatalf("listxattr: %s %v", st, value)
+	}
+	if st := m.RemoveXattr(ctx, inode, "a"); st != 0 {
+		t.Fatalf("setxattr: %s", st)
 	}
 
 	if st := m.Unlink(ctx, 1, "f2"); st != 0 {

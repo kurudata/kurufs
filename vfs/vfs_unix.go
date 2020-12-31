@@ -142,7 +142,7 @@ func SetAttr(ctx Context, ino Ino, set int, opened uint8, mode, uid, gid uint32,
 	var attr = &Attr{}
 	if (set & (meta.SET_ATTR_MODE | meta.SET_ATTR_UID | meta.SET_ATTR_GID | meta.SET_ATTR_ATIME | meta.SET_ATTR_MTIME | meta.SET_ATTR_SIZE)) == 0 {
 		// change other flags or change nothing
-		err = m.SetAttr(ctx, ino, opened, 0, 0, attr)
+		err = m.SetAttr(ctx, ino, 0, 0, attr)
 		if err != 0 {
 			return
 		}
@@ -165,7 +165,7 @@ func SetAttr(ctx Context, ino Ino, set int, opened uint8, mode, uid, gid uint32,
 			attr.Mtime = mtime
 			attr.Mtimensec = mtimensec
 		}
-		err = m.SetAttr(ctx, ino, opened, uint16(set), 0, attr)
+		err = m.SetAttr(ctx, ino, uint16(set), 0, attr)
 		if err != 0 {
 			return
 		}

@@ -11,6 +11,7 @@ addons:
       - g++-multilib
       - libacl1-dev
       - redis-server
+      - attr
 install: true
 before_script:
   - export GO111MODULE=on

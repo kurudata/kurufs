@@ -122,8 +122,8 @@ type Meta interface {
 	StatFS(ctx Context, totalspace, availspace, iused, iavail *uint64) syscall.Errno
 	Access(ctx Context, inode Ino, modemask uint16) syscall.Errno
 	Lookup(ctx Context, parent Ino, name string, inode *Ino, attr *Attr) syscall.Errno
-	GetAttr(ctx Context, inode Ino, opened uint8, attr *Attr) syscall.Errno
-	SetAttr(ctx Context, inode Ino, opened uint8, set uint16, sggidclearmode uint8, attr *Attr) syscall.Errno
+	GetAttr(ctx Context, inode Ino, attr *Attr) syscall.Errno
+	SetAttr(ctx Context, inode Ino, set uint16, sggidclearmode uint8, attr *Attr) syscall.Errno
 	Truncate(ctx Context, inode Ino, flags uint8, attrlength uint64, attr *Attr) syscall.Errno
 	Fallocate(ctx Context, inode Ino, mode uint8, off uint64, size uint64) syscall.Errno
 	ReadLink(ctx Context, inode Ino, path *[]byte) syscall.Errno
@@ -141,6 +141,11 @@ type Meta interface {
 	Read(inode Ino, indx uint32, chunks *[]Slice) syscall.Errno
 	NewChunk(ctx Context, inode Ino, indx uint32, offset uint32, chunkid *uint64) syscall.Errno
 	Write(ctx Context, inode Ino, indx uint32, off uint32, slice Slice) syscall.Errno
+
+	GetXattr(ctx Context, inode Ino, name string, vbuff *[]byte) syscall.Errno
+	ListXattr(ctx Context, inode Ino, dbuff *[]byte) syscall.Errno
+	SetXattr(ctx Context, inode Ino, name string, value []byte) syscall.Errno
+	RemoveXattr(ctx Context, inode Ino, name string) syscall.Errno
 
 	OnMsg(mtype uint32, cb MsgCallback)
 }

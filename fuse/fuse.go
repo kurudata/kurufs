@@ -178,6 +178,42 @@ func (fs *JFS) Readlink(cancel <-chan struct{}, header *fuse.InHeader) (out []by
 	return path, fuse.Status(err)
 }
 
+func (fs *JFS) GetXAttr(cancel <-chan struct{}, header *fuse.InHeader, attr string, dest []byte) (sz uint32, code fuse.Status) {
+	ctx := newContext(cancel, header)
+	defer releaseContext(ctx)
+	value, err := vfs.GetXattr(ctx, Ino(header.NodeId), attr, uint32(len(dest)))
+	if err != 0 {
+		return 0, fuse.Status(err)
+	}
+	copy(dest, value)
+	return uint32(len(value)), 0
+}
+
+func (fs *JFS) ListXAttr(cancel <-chan struct{}, header *fuse.InHeader, dest []byte) (uint32, fuse.Status) {
+	ctx := newContext(cancel, header)
+	defer releaseContext(ctx)
+	data, err := vfs.ListXattr(ctx, Ino(header.NodeId), len(dest))
+	if err != 0 {
+		return 0, fuse.Status(err)
+	}
+	copy(dest, data)
+	return uint32(len(data)), 0
+}
+
+func (fs *JFS) SetXAttr(cancel <-chan struct{}, in *fuse.SetXAttrIn, attr string, data []byte) fuse.Status {
+	ctx := newContext(cancel, &in.InHeader)
+	defer releaseContext(ctx)
+	err := vfs.SetXattr(ctx, Ino(in.NodeId), attr, data, int(in.Flags))
+	return fuse.Status(err)
+}
+
+func (fs *JFS) RemoveXAttr(cancel <-chan struct{}, header *fuse.InHeader, attr string) (code fuse.Status) {
+	ctx := newContext(cancel, header)
+	defer releaseContext(ctx)
+	err := vfs.RemoveXattr(ctx, Ino(header.NodeId), attr)
+	return fuse.Status(err)
+}
+
 func (fs *JFS) Access(cancel <-chan struct{}, in *fuse.AccessIn) (code fuse.Status) {
 	ctx := newContext(cancel, &in.InHeader)
 	defer releaseContext(ctx)
@@ -345,7 +381,7 @@ func Main(conf *vfs.Config, options string, attrcacheto_, entrycacheto_, direntr
 	opt.SingleThreaded = false
 	opt.MaxBackground = 50
 	opt.EnableLocks = false
-	opt.DisableXAttrs = true
+	opt.DisableXAttrs = false
 	opt.IgnoreSecurityLabels = true
 	opt.MaxWrite = 1 << 20
 	opt.MaxReadAhead = 1 << 20

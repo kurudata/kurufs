@@ -110,7 +110,7 @@ func GetAttr(ctx Context, ino Ino, opened uint8) (entry *meta.Entry, err syscall
 		return
 	}
 	var attr = &Attr{}
-	err = m.GetAttr(ctx, ino, opened, attr)
+	err = m.GetAttr(ctx, ino, attr)
 	if err != 0 {
 		return
 	}
@@ -478,7 +478,7 @@ func Truncate(ctx Context, ino Ino, size int64, opened uint8, attr *Attr) (err s
 	for {
 		err = m.Truncate(ctx, ino, flags, uint64(size), attr)
 		if err == syscall.ENOTSUP {
-			err = m.GetAttr(ctx, ino, 0, attr)
+			err = m.GetAttr(ctx, ino, attr)
 			if err == 0 {
 				fleng := attr.Length
 				logger.Debugf("fill zero %d-%d", fleng, size)
@@ -770,6 +770,113 @@ func Fsync(ctx Context, ino Ino, datasync int, fh uint64) (err syscall.Errno) {
 		return
 	}
 	err = doFsync(ctx, h)
+	return
+}
+
+const (
+	xattrMaxName = 255
+	xattrMaxSize = 65536
+)
+
+func SetXattr(ctx Context, ino Ino, name string, value []byte, flags int) (err syscall.Errno) {
+	defer func() { logit(ctx, "setxattr (%d,%s,%d,%d): %s", ino, name, len(value), flags, strerr(err)) }()
+	if IsSpecialNode(ino) {
+		err = syscall.EPERM
+		return
+	}
+	if len(value) > xattrMaxSize {
+		if runtime.GOOS == "darwin" {
+			err = syscall.E2BIG
+		} else {
+			err = syscall.ERANGE
+		}
+		return
+	}
+	if len(name) > xattrMaxName {
+		if runtime.GOOS == "darwin" {
+			err = syscall.EPERM
+		} else {
+			err = syscall.ERANGE
+		}
+		return
+	}
+	if len(name) == 0 {
+		err = syscall.EINVAL
+		return
+	}
+	if name == "system.posix_acl_access" || name == "system.posix_acl_default" {
+		err = syscall.ENOTSUP
+		return
+	}
+	err = m.SetXattr(ctx, ino, name, value)
+	return
+}
+
+func GetXattr(ctx Context, ino Ino, name string, size uint32) (value []byte, err syscall.Errno) {
+	defer func() { logit(ctx, "getxattr (%d,%s,%d): %s (%d)", ino, name, size, strerr(err), len(value)) }()
+
+	if IsSpecialNode(ino) {
+		err = syscall.EPERM
+		return
+	}
+	if len(name) > xattrMaxName {
+		if runtime.GOOS == "darwin" {
+			err = syscall.EPERM
+		} else {
+			err = syscall.ERANGE
+		}
+		return
+	}
+	if len(name) == 0 {
+		err = syscall.EINVAL
+		return
+	}
+	if name == "system.posix_acl_access" || name == "system.posix_acl_default" {
+		err = syscall.ENOTSUP
+		return
+	}
+	err = m.GetXattr(ctx, ino, name, &value)
+	if size > 0 && len(value) > int(size) {
+		err = syscall.ERANGE
+	}
+	return
+}
+
+func ListXattr(ctx Context, ino Ino, size int) (data []byte, err syscall.Errno) {
+	defer func() { logit(ctx, "listxattr (%d,%d): %s (%d)", ino, size, strerr(err), len(data)) }()
+	if IsSpecialNode(ino) {
+		err = syscall.EPERM
+		return
+	}
+	err = m.ListXattr(ctx, ino, &data)
+	if size > 0 && len(data) > size {
+		err = syscall.ERANGE
+	}
+	return
+}
+
+func RemoveXattr(ctx Context, ino Ino, name string) (err syscall.Errno) {
+	defer func() { logit(ctx, "removexattr (%d,%s): %s", ino, name, strerr(err)) }()
+	if IsSpecialNode(ino) {
+		err = syscall.EPERM
+		return
+	}
+	if name == "system.posix_acl_access" || name == "system.posix_acl_default" {
+		return syscall.ENOTSUP
+	}
+	if len(name) > xattrMaxName {
+		if runtime.GOOS == "darwin" {
+			err = syscall.EPERM
+		} else {
+			err = syscall.ERANGE
+		}
+		return
+	}
+	if len(name) == 0 {
+		err = syscall.EINVAL
+		return
+	}
+	err = m.RemoveXattr(ctx, ino, name)
 	return
 }
 

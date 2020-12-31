@@ -37,9 +37,9 @@ import (
 	Dir:   d$inode -> {name -> {inode,type}}
 	File:  c$inode_$indx -> [Slice{pos,id,length,off,len},]
 	Symlink: s$inode -> target
+	Xattr: x$inode -> {name -> value}
 
 	TODO:
-	Xattr: x$inode -> {name -> value}
 	ACL:
 	Posix Lock:
 	Flock:
@@ -169,6 +169,10 @@ func (r *redisMeta) chunkKey(inode Ino, indx uint32) string {
 	return fmt.Sprintf("c%d_%d", inode, indx)
 }
 
+func (r *redisMeta) xattrKey(inode Ino) string {
+	return fmt.Sprintf("x%d", inode)
+}
+
 func (r *redisMeta) nextInode() (Ino, error) {
 	ino, err := r.rdb.Incr(c, "nextinode").Uint64()
 	if ino == 1 {
@@ -278,7 +282,7 @@ func (r *redisMeta) Access(ctx Context, inode Ino, modemask uint16) syscall.Errn
 	return 0 // handled by kernel
 }
 
-func (r *redisMeta) GetAttr(ctx Context, inode Ino, opened uint8, attr *Attr) syscall.Errno {
+func (r *redisMeta) GetAttr(ctx Context, inode Ino, attr *Attr) syscall.Errno {
 	a, err := r.rdb.Get(c, r.inodeKey(inode)).Bytes()
 	if inode == 1 && err == redis.Nil {
 		// root inode
@@ -453,7 +457,7 @@ func (r *redisMeta) Fallocate(ctx Context, inode Ino, mode uint8, off uint64, si
 	}, r.inodeKey(inode))
 }
 
-func (r *redisMeta) SetAttr(ctx Context, inode Ino, opened uint8, set uint16, sugidclearmode uint8, attr *Attr) syscall.Errno {
+func (r *redisMeta) SetAttr(ctx Context, inode Ino, set uint16, sugidclearmode uint8, attr *Attr) syscall.Errno {
 	return r.txn(func(tx *redis.Tx) error {
 		var cur Attr
 		a, err := tx.Get(c, r.inodeKey(inode)).Bytes()
@@ -1028,7 +1032,7 @@ func (r *redisMeta) deleteInode(inode Ino) error {
 func (r *redisMeta) Open(ctx Context, inode Ino, flags uint8, attr *Attr) syscall.Errno {
 	var err syscall.Errno
 	if attr != nil {
-		err = r.GetAttr(ctx, inode, 1, attr)
+		err = r.GetAttr(ctx, inode, attr)
 	}
 	if err == 0 {
 		r.Lock()
@@ -1198,4 +1202,36 @@ func (r *redisMeta) deleteChunks(inode Ino, start, end uint64) {
 		}
 	}
 	r.rdb.ZRem(c, delchunks, r.delChunks(inode, start, end))
+}
+
+func (r *redisMeta) GetXattr(ctx Context, inode Ino, name string, vbuff *[]byte) syscall.Errno {
+	var err error
+	*vbuff, err = r.rdb.HGet(c, r.xattrKey(inode), name).Bytes()
+	return errno(err)
+}
+
+func (r *redisMeta) ListXattr(ctx Context, inode Ino, names *[]byte) syscall.Errno {
+	vals, err := r.rdb.HKeys(c, r.xattrKey(inode)).Result()
+	if err != nil {
+		return errno(err)
+	}
+	*names = nil
+	for _, name := range vals {
+		*names = append(*names, []byte(name)...)
+		*names = append(*names, 0)
+	}
+	return 0
+}
+
+func (r *redisMeta) SetXattr(ctx Context, inode Ino, name string, value []byte) syscall.Errno {
+	_, err := r.rdb.HSet(c, r.xattrKey(inode), name, value).Result()
+	return errno(err)
+}
+
+func (r *redisMeta) RemoveXattr(ctx Context, inode Ino, name string) syscall.Errno {
+	n, err := r.rdb.HDel(c, r.xattrKey(inode), name).Result()
+	if n == 0 {
+		err = syscall.ENODATA
+	}
+	return errno(err)
 }
