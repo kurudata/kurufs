@@ -34,7 +34,7 @@ type handle struct {
 	// for file
 	length     uint64
 	mode       uint8
-	uselocks   uint8
+	locks      uint8
 	flockOwner uint64 // kernel 3.1- does not pass lock_owner in release()
 	reader     FileReader
 	writer     FileWriter

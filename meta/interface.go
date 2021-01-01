@@ -115,6 +115,20 @@ type Slice struct {
 	Len     uint32
 }
 
+const (
+	// posix_locks.cmd:
+	POSIX_LOCK_CMD_GET = 0
+	POSIX_LOCK_CMD_SET = 1
+	POSIX_LOCK_CMD_TRY = 2
+	POSIX_LOCK_CMD_INT = 3
+
+	// posix_locks.type:
+	POSIX_LOCK_UNLCK   = 0
+	POSIX_LOCK_RDLCK   = 1
+	POSIX_LOCK_WRLCK   = 2
+	POSIX_LOCK_INVALID = 3
+)
+
 type Meta interface {
 	Init(format Format) error
 	Load() (*Format, error)
@@ -146,6 +160,9 @@ type Meta interface {
 	ListXattr(ctx Context, inode Ino, dbuff *[]byte) syscall.Errno
 	SetXattr(ctx Context, inode Ino, name string, value []byte) syscall.Errno
 	RemoveXattr(ctx Context, inode Ino, name string) syscall.Errno
+	Flock(ctx Context, inode Ino, owner uint64, ltype uint32, block bool) syscall.Errno
+	Getlk(ctx Context, inode Ino, owner uint64, ltype *uint32, start, end *uint64, pid *uint32) syscall.Errno
+	Setlk(ctx Context, inode Ino, owner uint64, block bool, ltype uint32, start, end uint64, pid uint32) syscall.Errno
 
 	OnMsg(mtype uint32, cb MsgCallback)
 }

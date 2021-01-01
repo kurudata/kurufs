@@ -176,3 +176,108 @@ func SetAttr(ctx Context, ino Ino, set int, opened uint8, mode, uid, gid uint32,
 	entry = &meta.Entry{Inode: ino, Attr: attr}
 	return
 }
+
+type lockType uint32
+
+func (l lockType) String() string {
+	switch l {
+	case syscall.F_UNLCK:
+		return "U"
+	case syscall.F_RDLCK:
+		return "R"
+	case syscall.F_WRLCK:
+		return "W"
+	default:
+		return "X"
+	}
+}
+
+func Getlk(ctx Context, ino Ino, fh uint64, owner uint64, start, len *uint64, typ *uint32, pid *uint32) (err syscall.Errno) {
+	logit(ctx, "getlk (%d,%016X): %s (%d,%d,%s,%d)", ino, owner, strerr(err), *start, *len, lockType(*typ), *pid)
+	if lockType(*typ).String() == "X" {
+		return syscall.EINVAL
+	}
+	if IsSpecialNode(ino) {
+		err = syscall.EPERM
+		return
+	}
+	if findHandle(ino, fh) == nil {
+		err = syscall.EBADF
+		return
+	}
+	err = m.Getlk(ctx, ino, owner, typ, start, len, pid)
+	return
+}
+
+func Setlk(ctx Context, ino Ino, fh uint64, owner uint64, start, end uint64, typ uint32, pid uint32, block bool) (err syscall.Errno) {
+	defer func() {
+		logit(ctx, "setlk (%d,%016X,%d,%d,%s,%t,%d): %s", ino, owner, start, end, lockType(typ), block, pid, strerr(err))
+	}()
+	if lockType(typ).String() == "X" {
+		return syscall.EINVAL
+	}
+	if IsSpecialNode(ino) {
+		err = syscall.EPERM
+		return
+	}
+	h := findHandle(ino, fh)
+	if h == nil {
+		err = syscall.EBADF
+		return
+	}
+	h.addOp(ctx)
+	defer h.removeOp(ctx)
+
+	err = m.Setlk(ctx, ino, owner, block, typ, start, end, pid)
+	if err == 0 {
+		h.Lock()
+		if typ == syscall.F_UNLCK {
+			h.locks &= 1
+		} else {
+			h.locks |= 2
+		}
+		h.Unlock()
+	}
+	return
+}
+
+func Flock(ctx Context, ino Ino, fh uint64, owner uint64, typ uint32, block bool) (err syscall.Errno) {
+	var name string
+	var reqid uint32
+	defer func() { logit(ctx, "flock (%d,%d,%016X,%s,%t): %s", reqid, ino, owner, name, block, strerr(err)) }()
+	switch typ {
+	case syscall.F_RDLCK:
+		name = "LOCKSH"
+	case syscall.F_WRLCK:
+		name = "LOCKEX"
+	case syscall.F_UNLCK:
+		name = "UNLOCK"
+	default:
+		err = syscall.EINVAL
+		return
+	}
+
+	if IsSpecialNode(ino) {
+		err = syscall.EPERM
+		return
+	}
+	h := findHandle(ino, fh)
+	if h == nil {
+		err = syscall.EBADF
+		return
+	}
+	h.addOp(ctx)
+	defer h.removeOp(ctx)
+	err = m.Flock(ctx, ino, owner, typ, block)
+	if err == 0 {
+		h.Lock()
+		if typ == syscall.F_UNLCK {
+			h.locks &= 2
+		} else {
+			h.locks |= 1
+			h.flockOwner = owner
+		}
+		h.Unlock()
+	}
+	return
+}

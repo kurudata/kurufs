@@ -16,6 +16,7 @@
 package redis
 
 import (
+	"syscall"
 	"testing"
 
 	"github.com/juicedata/juicefs/meta"
@@ -114,6 +115,32 @@ func TestRedisClient(t *testing.T) {
 	}
 	if st := m.RemoveXattr(ctx, inode, "a"); st != 0 {
 		t.Fatalf("setxattr: %s", st)
+	}
+
+	// flock
+	if st := m.Flock(ctx, inode, 1, syscall.F_RDLCK, false); st != 0 {
+		t.Fatalf("flock rlock: %s", st)
+	}
+	if st := m.Flock(ctx, inode, 2, syscall.F_RDLCK, false); st != 0 {
+		t.Fatalf("flock rlock: %s", st)
+	}
+	if st := m.Flock(ctx, inode, 1, syscall.F_WRLCK, false); st != syscall.EAGAIN {
+		t.Fatalf("flock wlock: %s", st)
+	}
+	if st := m.Flock(ctx, inode, 2, syscall.F_UNLCK, false); st != 0 {
+		t.Fatalf("flock unlock: %s", st)
+	}
+	if st := m.Flock(ctx, inode, 1, syscall.F_WRLCK, false); st != 0 {
+		t.Fatalf("flock wlock again: %s", st)
+	}
+	if st := m.Flock(ctx, inode, 2, syscall.F_WRLCK, false); st != syscall.EAGAIN {
+		t.Fatalf("flock wlock: %s", st)
+	}
+	if st := m.Flock(ctx, inode, 2, syscall.F_RDLCK, false); st != syscall.EAGAIN {
+		t.Fatalf("flock rlock: %s", st)
+	}
+	if st := m.Flock(ctx, inode, 1, syscall.F_UNLCK, false); st != 0 {
+		t.Fatalf("flock unlock: %s", st)
 	}
 
 	if st := m.Unlink(ctx, 1, "f2"); st != 0 {

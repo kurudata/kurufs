@@ -35,16 +35,16 @@ import (
 /*
 	Node: i$inode -> Attribute{type,mode,uid,gid,atime,mtime,ctime,nlink,length,rdev}
 	Dir:   d$inode -> {name -> {inode,type}}
-	File:  c$inode_$indx -> [Slice{pos,id,length,off,len},]
+	File:  c$inode_$indx -> [Slice{pos,id,length,off,len}]
 	Symlink: s$inode -> target
 	Xattr: x$inode -> {name -> value}
+	Flock: lockf$inode -> { $sid_$owner -> ltype }
+	POSIX lock: lockp$inode -> { $sid_$owner -> Plock(pid,ltype,start,end) }
+	Sessions: sessions -> [ $sid -> heartbeat ]
 
 	TODO:
 	ACL:
-	Posix Lock:
-	Flock:
 
-	Sessions
 	Removed chunks
 */
 
@@ -171,6 +171,18 @@ func (r *redisMeta) chunkKey(inode Ino, indx uint32) string {
 
 func (r *redisMeta) xattrKey(inode Ino) string {
 	return fmt.Sprintf("x%d", inode)
+}
+
+func (r *redisMeta) flockKey(inode Ino) string {
+	return fmt.Sprintf("lockf%d", inode)
+}
+
+func (r *redisMeta) ownerKey(owner uint64) string {
+	return fmt.Sprintf("%d_%d", r.sid, owner)
+}
+
+func (r *redisMeta) plockKey(inode Ino) string {
+	return fmt.Sprintf("lockp%d", inode)
 }
 
 func (r *redisMeta) nextInode() (Ino, error) {
@@ -981,28 +993,64 @@ func (r *redisMeta) Readdir(ctx Context, inode Ino, plus uint8, entries *[]*Entr
 	return 0
 }
 
+func (r *redisMeta) cleanStaleSession(sid int64) {
+	inodes, err := r.rdb.LRange(c, r.sessionKey(sid), 0, 1000).Result()
+	if err != nil {
+		return
+	}
+	for _, sinode := range inodes {
+		inode, _ := strconv.Atoi(sinode)
+		r.deleteInode(Ino(inode))
+	}
+	if len(inodes) == 0 {
+		r.rdb.Del(c, r.sessionKey(sid))
+		r.rdb.ZRem(c, allSessions, strconv.Itoa(int(sid)))
+	}
+}
+
+func (r *redisMeta) cleanStaleSessions() {
+	now := time.Now()
+	rng := &redis.ZRangeBy{"", strconv.Itoa(int(now.Add(time.Minute * -10).Unix())), 0, 100}
+	staleSessions, _ := r.rdb.ZRangeByScore(c, allSessions, rng).Result()
+	for _, ssid := range staleSessions {
+		sid, _ := strconv.Atoi(ssid)
+		r.cleanStaleSession(int64(sid))
+	}
+
+	rng = &redis.ZRangeBy{"", strconv.Itoa(int(now.Add(time.Minute * -3).Unix())), 0, 100}
+	staleSessions, err := r.rdb.ZRangeByScore(c, allSessions, rng).Result()
+	if err != nil || len(staleSessions) == 0 {
+		return
+	}
+	sids := make(map[string]bool)
+	for _, sid := range staleSessions {
+		sids[sid] = true
+	}
+	var cursor uint64
+	var keys []string
+	for {
+		keys, cursor, err = r.rdb.Scan(c, cursor, "lock*", 1000).Result()
+		if err != nil || len(keys) == 0 {
+			break
+		}
+		for _, k := range keys {
+			owners, _ := r.rdb.HKeys(c, k).Result()
+			for _, o := range owners {
+				p := strings.Split(o, "_")[0]
+				if _, ok := sids[p]; ok {
+					err = r.rdb.HDel(c, k, o).Err()
+					logger.Infof("cleanup lock on %s from session %s: %s", k, p, err)
+				}
+			}
+		}
+	}
+}
+
 func (r *redisMeta) refreshSession() {
 	for {
 		now := time.Now()
 		r.rdb.ZAdd(c, allSessions, &redis.Z{float64(now.Unix()), strconv.Itoa(int(r.sid))})
-		rng := &redis.ZRangeBy{"", strconv.Itoa(int(now.Add(time.Minute * -10).Unix())), 0, 100}
-		staleSessions, _ := r.rdb.ZRangeByScore(c, allSessions, rng).Result()
-		for _, ssid := range staleSessions {
-			sid, _ := strconv.Atoi(ssid)
-			inodes, err := r.rdb.LRange(c, r.sessionKey(int64(sid)), 0, 1000000).Result()
-			if err == nil {
-				for _, sinode := range inodes {
-					inode, _ := strconv.Atoi(sinode)
-					if err = r.deleteInode(Ino(inode)); err != nil {
-						break
-					}
-				}
-				if err == nil {
-					r.rdb.Del(c, r.sessionKey(int64(sid)))
-					r.rdb.ZRem(c, allSessions, ssid)
-				}
-			}
-		}
+		go r.cleanStaleSessions()
 		time.Sleep(time.Minute)
 	}
 }
@@ -1234,4 +1282,57 @@ func (r *redisMeta) RemoveXattr(ctx Context, inode Ino, name string) syscall.Err
 		err = syscall.ENODATA
 	}
 	return errno(err)
+}
+
+func (r *redisMeta) Flock(ctx Context, inode Ino, owner uint64, cmd uint32, block bool) syscall.Errno {
+	lkey := r.ownerKey(owner)
+	if cmd == syscall.F_UNLCK {
+		_, err := r.rdb.HDel(c, r.flockKey(inode), lkey).Result()
+		return errno(err)
+	}
+	var err syscall.Errno
+	for {
+		err = r.txn(func(tx *redis.Tx) error {
+			owners, err := tx.HGetAll(c, r.flockKey(inode)).Result()
+			if err != nil {
+				return err
+			}
+			if cmd == syscall.F_RDLCK {
+				for _, v := range owners {
+					if v == "W" {
+						return syscall.EAGAIN
+					}
+				}
+				return tx.HSet(c, r.flockKey(inode), lkey, "R").Err()
+			}
+			delete(owners, lkey)
+			if len(owners) == 0 {
+				return tx.HSet(c, r.flockKey(inode), lkey, "W").Err()
+			}
+			return syscall.EAGAIN
+		}, r.flockKey(inode))
+		if !block || err != syscall.EAGAIN {
+			break
+		}
+		time.Sleep(time.Millisecond * 10)
+		if ctx.Canceled() {
+			return syscall.EINTR
+		}
+	}
+	return err
+}
+
+type plock struct {
+	ltype uint8
+	pid   uint32
+	start uint64
+	end   uint64
+}
+
+func (r *redisMeta) Getlk(ctx Context, inode Ino, owner uint64, ltype *uint32, start, end *uint64, pid *uint32) syscall.Errno {
+	return syscall.ENOSYS
+}
+
+func (r *redisMeta) Setlk(ctx Context, inode Ino, owner uint64, block bool, ltype uint32, start, end uint64, pid uint32) syscall.Errno {
+	return syscall.ENOSYS
 }

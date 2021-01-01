@@ -20,6 +20,7 @@ before_script:
   - sudo make -C fstests setup
 script:
   - sudo DURATION=${DURATION} make -C fstests ${TEST_SUITE}
+  - make -C fstests flock
 after_failure:
   - sudo tail -n 100 /var/log/syslog
 notifications:

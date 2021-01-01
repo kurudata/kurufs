@@ -293,6 +293,43 @@ func (fs *JFS) Fallocate(cancel <-chan struct{}, in *fuse.FallocateIn) (code fus
 	return fuse.Status(err)
 }
 
+func (fs *JFS) GetLk(cancel <-chan struct{}, in *fuse.LkIn, out *fuse.LkOut) (code fuse.Status) {
+	ctx := newContext(cancel, &in.InHeader)
+	defer releaseContext(ctx)
+	l := in.Lk
+	err := vfs.Getlk(ctx, Ino(in.NodeId), in.Fh, in.Owner, &l.Start, &l.End, &l.Typ, &l.Pid)
+	if err == 0 {
+		out.Lk = l
+	}
+	return fuse.Status(err)
+}
+
+func (fs *JFS) SetLk(cancel <-chan struct{}, in *fuse.LkIn) (code fuse.Status) {
+	return fs.setLk(cancel, in, false)
+}
+
+func (fs *JFS) SetLkw(cancel <-chan struct{}, in *fuse.LkIn) (code fuse.Status) {
+	return fs.setLk(cancel, in, true)
+}
+
+func (fs *JFS) setLk(cancel <-chan struct{}, in *fuse.LkIn, block bool) (code fuse.Status) {
+	if in.LkFlags&fuse.FUSE_LK_FLOCK != 0 {
+		return fs.Flock(cancel, in, block)
+	}
+	ctx := newContext(cancel, &in.InHeader)
+	defer releaseContext(ctx)
+	l := in.Lk
+	err := vfs.Setlk(ctx, Ino(in.NodeId), in.Fh, in.Owner, l.Start, l.End, l.Typ, l.Pid, block)
+	return fuse.Status(err)
+}
+
+func (fs *JFS) Flock(cancel <-chan struct{}, in *fuse.LkIn, block bool) (code fuse.Status) {
+	ctx := newContext(cancel, &in.InHeader)
+	defer releaseContext(ctx)
+	err := vfs.Flock(ctx, Ino(in.NodeId), in.Fh, in.Owner, in.Lk.Typ, block)
+	return fuse.Status(err)
+}
+
 func (fs *JFS) OpenDir(cancel <-chan struct{}, in *fuse.OpenIn, out *fuse.OpenOut) (status fuse.Status) {
 	ctx := newContext(cancel, &in.InHeader)
 	defer releaseContext(ctx)
@@ -380,7 +417,7 @@ func Main(conf *vfs.Config, options string, attrcacheto_, entrycacheto_, direntr
 	opt.Name = "juicefs"
 	opt.SingleThreaded = false
 	opt.MaxBackground = 50
-	opt.EnableLocks = false
+	opt.EnableLocks = true
 	opt.DisableXAttrs = false
 	opt.IgnoreSecurityLabels = true
 	opt.MaxWrite = 1 << 20

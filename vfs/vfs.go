@@ -553,9 +553,14 @@ func Release(ctx Context, ino Ino, fh uint64) (err syscall.Errno) {
 					return
 				}
 			}
+			locks := f.locks
+			owner := f.flockOwner
 			f.Unlock()
 			if f.writer != nil {
 				f.writer.Close(ctx)
+			}
+			if locks&1 != 0 {
+				m.Flock(ctx, ino, owner, syscall.F_UNLCK, false)
 			}
 		}
 		m.Close(ctx, ino)
@@ -737,6 +742,7 @@ func Flush(ctx Context, ino Ino, fh uint64, lockOwner uint64) (err syscall.Errno
 	}
 
 	h.Lock()
+	locks := h.locks
 	if h.writer != nil && (h.mode != WANT_READ) {
 		h.Unlock()
 		if !h.Wlock(ctx) {
@@ -756,6 +762,9 @@ func Flush(ctx Context, ino Ino, fh uint64, lockOwner uint64) (err syscall.Errno
 		h.cancelOp(ctx.Pid())
 	}
 	h.Unlock()
+	if locks&2 != 0 {
+		m.Setlk(ctx, ino, lockOwner, false, syscall.F_UNLCK, 0, 0x7FFFFFFFFFFFFFFF, 0)
+	}
 	return
 }
 

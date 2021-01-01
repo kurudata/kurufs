@@ -31,3 +31,8 @@ secfs.test/tools/bin/fsracer: secfs.test
 secfs.test:
 	git clone https://github.com/billziss-gh/secfs.test.git
 	make -C secfs.test >secfs.test-build.log 2>&1
+
+flock:
+	git clone https://github.com/gofrs/flock.git
+	mkdir /jfs/tmp
+	cd flock && TMPDIR=/jfs/tmp go test .
