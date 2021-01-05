@@ -16,15 +16,17 @@
 package redis
 
 import (
+	"sync"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/juicedata/juicefs/meta"
 )
 
 func TestRedisClient(t *testing.T) {
 	var conf RedisConfig
-	m, err := NewRedisMeta("redis://127.0.0.1:6379/14", &conf)
+	m, err := NewRedisMeta("redis://127.0.0.1:6379/7", &conf)
 	if err != nil {
 		t.Logf("redis is not available: %s", err)
 		t.Skip()
@@ -142,6 +144,66 @@ func TestRedisClient(t *testing.T) {
 	if st := m.Flock(ctx, inode, 1, syscall.F_UNLCK, false); st != 0 {
 		t.Fatalf("flock unlock: %s", st)
 	}
+
+	// POSIX locks
+	if st := m.Setlk(ctx, inode, 1, false, syscall.F_RDLCK, 0, 0xFFFF, 1); st != 0 {
+		t.Fatalf("plock rlock: %s", st)
+	}
+	if st := m.Setlk(ctx, inode, 2, false, syscall.F_RDLCK, 0, 0x2FFFF, 1); st != 0 {
+		t.Fatalf("plock rlock: %s", st)
+	}
+	if st := m.Setlk(ctx, inode, 2, false, syscall.F_WRLCK, 0, 0xFFFF, 1); st != syscall.EAGAIN {
+		t.Fatalf("plock wlock: %s", st)
+	}
+	if st := m.Setlk(ctx, inode, 2, false, syscall.F_WRLCK, 0x10000, 0x20000, 1); st != 0 {
+		t.Fatalf("plock wlock: %s", st)
+	}
+	if st := m.Setlk(ctx, inode, 1, false, syscall.F_UNLCK, 0, 0x20000, 1); st != 0 {
+		t.Fatalf("plock unlock: %s", st)
+	}
+	if st := m.Setlk(ctx, inode, 2, false, syscall.F_WRLCK, 0, 0xFFFF, 10); st != 0 {
+		t.Fatalf("plock wlock: %s", st)
+	}
+	if st := m.Setlk(ctx, inode, 1, false, syscall.F_WRLCK, 0, 0xFFFF, 1); st != syscall.EAGAIN {
+		t.Fatalf("plock rlock: %s", st)
+	}
+	var ltype, pid uint32 = syscall.F_WRLCK, 1
+	var start, end uint64 = 0, 0xFFFF
+	if st := m.Getlk(ctx, inode, 1, &ltype, &start, &end, &pid); st != 0 || ltype != syscall.F_WRLCK || pid != 10 || start != 0 || end != 0xFFFF {
+		t.Fatalf("plock get rlock: %s, %d %d %x %x", st, ltype, pid, start, end)
+	}
+	if st := m.Setlk(ctx, inode, 2, false, syscall.F_UNLCK, 0, 0x2FFFF, 1); st != 0 {
+		t.Fatalf("plock unlock: %s", st)
+	}
+	ltype = syscall.F_WRLCK
+	start, end = 0, 0xFFFFFF
+	if st := m.Getlk(ctx, inode, 1, &ltype, &start, &end, &pid); st != 0 || ltype != syscall.F_UNLCK || pid != 0 || start != 0 || end != 0 {
+		t.Fatalf("plock get rlock: %s, %d %d %x %x", st, ltype, pid, start, end)
+	}
+
+	// concurrent locks
+	var g sync.WaitGroup
+	var count int
+	for i := 0; i < 100; i++ {
+		g.Add(1)
+		go func(i int) {
+			defer g.Done()
+			if st := m.Setlk(ctx, inode, uint64(i), true, syscall.F_WRLCK, 0, 0xFFFF, uint32(i)); st != 0 {
+				err = st
+			}
+			count++
+			time.Sleep(time.Millisecond)
+			count--
+			if count > 0 {
+				logger.Errorf("count should be be zero but got %d", count)
+			}
+			if st := m.Setlk(ctx, inode, uint64(i), false, syscall.F_UNLCK, 0, 0xFFFF, uint32(i)); st != 0 {
+				logger.Errorf("plock unlock: %s", st)
+				err = st
+			}
+		}(i)
+	}
+	g.Wait()
 
 	if st := m.Unlink(ctx, 1, "f2"); st != 0 {
 		t.Fatalf("unlink: %s", st)

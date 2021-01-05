@@ -231,9 +231,7 @@ func Setlk(ctx Context, ino Ino, fh uint64, owner uint64, start, end uint64, typ
 	err = m.Setlk(ctx, ino, owner, block, typ, start, end, pid)
 	if err == 0 {
 		h.Lock()
-		if typ == syscall.F_UNLCK {
-			h.locks &= 1
-		} else {
+		if typ != syscall.F_UNLCK {
 			h.locks |= 2
 		}
 		h.Unlock()
