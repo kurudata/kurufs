@@ -355,6 +355,10 @@ func (r *redisMeta) txn(txf func(tx *redis.Tx) error, keys ...string) syscall.Er
 }
 
 func (r *redisMeta) Truncate(ctx Context, inode Ino, flags uint8, length uint64, attr *Attr) syscall.Errno {
+	maxchunk, err := r.rdb.IncrBy(c, "nextchunk", 0).Uint64()
+	if err != nil {
+		return errno(err)
+	}
 	return r.txn(func(tx *redis.Tx) error {
 		var t Attr
 		a, err := tx.Get(c, r.inodeKey(inode)).Bytes()
@@ -373,7 +377,7 @@ func (r *redisMeta) Truncate(ctx Context, inode Ino, flags uint8, length uint64,
 		_, err = tx.TxPipelined(c, func(pipe redis.Pipeliner) error {
 			pipe.Set(c, r.inodeKey(inode), r.marshal(&t), 0)
 			if old > length {
-				pipe.ZAdd(c, delchunks, &redis.Z{float64(now.Unix()), r.delChunks(inode, length, old)})
+				pipe.ZAdd(c, delchunks, &redis.Z{float64(now.Unix()), r.delChunks(inode, length, old, maxchunk)})
 			} else if length > (old/CHUNKSIZE+1)*CHUNKSIZE {
 				// zero out last chunks
 				w := utils.NewBuffer(24)
@@ -391,7 +395,7 @@ func (r *redisMeta) Truncate(ctx Context, inode Ino, flags uint8, length uint64,
 			if attr != nil {
 				*attr = t
 			}
-			go r.deleteChunks(inode, length, old)
+			go r.deleteChunks(inode, length, old, maxchunk)
 		}
 		return err
 	}, r.inodeKey(inode))
@@ -667,10 +671,17 @@ func (r *redisMeta) Unlink(ctx Context, parent Ino, name string) syscall.Errno {
 
 		attr.Nlink--
 		var opened bool
+		var maxchunk uint64
 		if _type == TYPE_FILE && attr.Nlink == 0 {
 			r.Lock()
 			opened = r.openFiles[inode] > 0
 			r.Unlock()
+			if !opened {
+				maxchunk, err = tx.IncrBy(c, "nextchunk", 0).Uint64()
+				if err != nil {
+					return err
+				}
+			}
 		}
 
 		_, err = tx.TxPipelined(c, func(pipe redis.Pipeliner) error {
@@ -687,7 +698,7 @@ func (r *redisMeta) Unlink(ctx Context, parent Ino, name string) syscall.Errno {
 					if opened {
 						pipe.SAdd(c, r.sessionKey(r.sid), strconv.Itoa(int(inode)))
 					} else {
-						pipe.ZAdd(c, delchunks, &redis.Z{float64(now.Unix()), r.delChunks(inode, 0, attr.Length)})
+						pipe.ZAdd(c, delchunks, &redis.Z{float64(now.Unix()), r.delChunks(inode, 0, attr.Length, maxchunk)})
 						pipe.Del(c, r.inodeKey(inode))
 						pipe.IncrBy(c, usedSpace, -align4K(attr.Length))
 					}
@@ -702,7 +713,7 @@ func (r *redisMeta) Unlink(ctx Context, parent Ino, name string) syscall.Errno {
 				r.removedFiles[inode] = true
 				r.Unlock()
 			} else {
-				go r.deleteChunks(inode, 0, attr.Length)
+				go r.deleteChunks(inode, 0, attr.Length, maxchunk)
 			}
 		}
 		return err
@@ -804,6 +815,7 @@ func (r *redisMeta) Rename(ctx Context, parentSrc Ino, nameSrc string, parentDst
 		}
 		var tattr Attr
 		var opened bool
+		var maxchunk uint64
 		if err == nil {
 			typ1, dino1 := r.parseEntry(buf)
 			if dino1 != dino || typ1 != dtyp {
@@ -832,6 +844,12 @@ func (r *redisMeta) Rename(ctx Context, parentSrc Ino, nameSrc string, parentDst
 					r.Lock()
 					opened = r.openFiles[dino] > 0
 					r.Unlock()
+					if !opened {
+						maxchunk, err = tx.IncrBy(c, "nextchunk", 0).Uint64()
+						if err != nil {
+							return err
+						}
+					}
 				}
 			}
 		} else {
@@ -893,7 +911,7 @@ func (r *redisMeta) Rename(ctx Context, parentSrc Ino, nameSrc string, parentDst
 						if opened {
 							pipe.SAdd(c, r.sessionKey(r.sid), strconv.Itoa(int(dino)))
 						} else {
-							pipe.ZAdd(c, delchunks, &redis.Z{float64(now.Unix()), r.delChunks(dino, 0, tattr.Length)})
+							pipe.ZAdd(c, delchunks, &redis.Z{float64(now.Unix()), r.delChunks(dino, 0, tattr.Length, maxchunk)})
 							pipe.Del(c, r.inodeKey(dino))
 							pipe.IncrBy(c, usedSpace, -align4K(tattr.Length))
 						}
@@ -915,7 +933,7 @@ func (r *redisMeta) Rename(ctx Context, parentSrc Ino, nameSrc string, parentDst
 				r.removedFiles[dino] = true
 				r.Unlock()
 			} else {
-				go r.deleteChunks(dino, 0, tattr.Length)
+				go r.deleteChunks(dino, 0, tattr.Length, maxchunk)
 			}
 		}
 		return err
@@ -1067,15 +1085,19 @@ func (r *redisMeta) deleteInode(inode Ino) error {
 	if err != nil {
 		return err
 	}
+	maxchunk, err := r.rdb.IncrBy(c, "nextchunk", 0).Uint64()
+	if err != nil {
+		return err
+	}
 	r.parseAttr(a, &attr)
 	_, err = r.rdb.TxPipelined(c, func(pipe redis.Pipeliner) error {
-		pipe.ZAdd(c, delchunks, &redis.Z{float64(time.Now().Unix()), r.delChunks(inode, 0, attr.Length)})
+		pipe.ZAdd(c, delchunks, &redis.Z{float64(time.Now().Unix()), r.delChunks(inode, 0, attr.Length, maxchunk)})
 		pipe.Del(c, r.inodeKey(inode))
 		pipe.IncrBy(c, usedSpace, -align4K(attr.Length))
 		return nil
 	})
 	if err == nil {
-		go r.deleteChunks(inode, 0, attr.Length)
+		go r.deleteChunks(inode, 0, attr.Length, maxchunk)
 	}
 	return err
 }
@@ -1189,8 +1211,8 @@ func (r *redisMeta) Write(ctx Context, inode Ino, indx uint32, off uint32, slice
 	}, r.inodeKey(inode), r.chunkKey(inode, indx))
 }
 
-func (r *redisMeta) delChunks(inode Ino, start, end uint64) string {
-	return fmt.Sprintf("%d:%d:%d", inode, start, end)
+func (r *redisMeta) delChunks(inode Ino, start, end, maxchunkid uint64) string {
+	return fmt.Sprintf("%d:%d:%d:%d", inode, start, end, maxchunkid)
 }
 
 func (r *redisMeta) cleanupChunks() {
@@ -1199,20 +1221,21 @@ func (r *redisMeta) cleanupChunks() {
 		members, _ := r.rdb.ZRangeByScore(c, delchunks, &redis.ZRangeBy{strconv.Itoa(0), strconv.Itoa(int(now.Add(time.Hour).Unix())), 0, 1000}).Result()
 		for _, member := range members {
 			ps := strings.Split(member, ":")
-			if len(ps) != 3 {
+			if len(ps) != 4 {
 				logger.Errorf("invalid del chunks: %s", member)
 				continue
 			}
 			inode, _ := strconv.Atoi(ps[0])
 			start, _ := strconv.Atoi(ps[1])
 			end, _ := strconv.Atoi(ps[2])
-			r.deleteChunks(Ino(inode), uint64(start), uint64(end))
+			maxchunk, _ := strconv.Atoi(ps[3])
+			r.deleteChunks(Ino(inode), uint64(start), uint64(end), uint64(maxchunk))
 		}
 		time.Sleep(time.Minute)
 	}
 }
 
-func (r *redisMeta) deleteChunks(inode Ino, start, end uint64) {
+func (r *redisMeta) deleteChunks(inode Ino, start, end, maxchunk uint64) {
 	var i uint32
 	if start > 0 {
 		i = uint32((start-1)/CHUNKSIZE) + 1
@@ -1222,7 +1245,7 @@ func (r *redisMeta) deleteChunks(inode Ino, start, end uint64) {
 		p := r.rdb.Pipeline()
 		var indx = i
 		for j := 0; uint64(i)*CHUNKSIZE <= end && j < 1000; j++ {
-			rs = append(rs, p.LRange(c, r.chunkKey(inode, i), 0, 1000000))
+			rs = append(rs, p.LRange(c, r.chunkKey(inode, i), 0, 1000))
 			i++
 		}
 		vals, err := p.Exec(c)
@@ -1239,20 +1262,42 @@ func (r *redisMeta) deleteChunks(inode Ino, start, end uint64) {
 				rb := utils.ReadBuffer([]byte(cs))
 				_ = rb.Get32() // pos
 				chunkid := rb.Get64()
+				if chunkid == 0 {
+					continue
+				}
+				// there could be new data written after the chunk is marked for deletion,
+				// so we should not delete any chunk with id > maxchunk
+				if chunkid > maxchunk {
+					// mark this chunk is deleted
+					break
+				}
 				cleng := rb.Get32()
 				err := r.newMsg(CHUNK_DEL, chunkid, cleng)
 				if err != nil {
 					logger.Warnf("delete chunk %d fail: %s, retry later", inode, err)
 					now := time.Now()
-					key := r.delChunks(inode, uint64((indx+uint32(j)))*CHUNKSIZE, uint64((indx+uint32(j)+1))*CHUNKSIZE)
+					key := r.delChunks(inode, uint64((indx+uint32(j)))*CHUNKSIZE, uint64((indx+uint32(j)+1))*CHUNKSIZE, maxchunk)
 					r.rdb.ZAdd(c, delchunks, &redis.Z{float64(now.Unix()), key})
 					return
 				}
+				r.txn(func(tx *redis.Tx) error {
+					val, err := tx.LRange(c, r.chunkKey(inode, indx+uint32(j)), 0, 1).Result()
+					if err != nil {
+						return err
+					}
+					if len(val) == 1 && val[0] == cs {
+						_, err = tx.TxPipelined(c, func(pipe redis.Pipeliner) error {
+							pipe.LPop(c, r.chunkKey(inode, indx+uint32(j)))
+							return nil
+						})
+						return err
+					}
+					return nil
+				}, r.chunkKey(inode, indx+uint32(j)))
 			}
-			r.rdb.Del(c, r.chunkKey(inode, indx+uint32(j)))
 		}
 	}
-	r.rdb.ZRem(c, delchunks, r.delChunks(inode, start, end))
+	r.rdb.ZRem(c, delchunks, r.delChunks(inode, start, end, maxchunk))
 }
 
 func (r *redisMeta) GetXattr(ctx Context, inode Ino, name string, vbuff *[]byte) syscall.Errno {
