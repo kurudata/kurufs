@@ -1258,6 +1258,9 @@ func (r *redisMeta) deleteChunks(inode Ino, start, end uint64) {
 func (r *redisMeta) GetXattr(ctx Context, inode Ino, name string, vbuff *[]byte) syscall.Errno {
 	var err error
 	*vbuff, err = r.rdb.HGet(c, r.xattrKey(inode), name).Bytes()
+	if err == redis.Nil {
+		err = syscall.ENODATA
+	}
 	return errno(err)
 }
 
