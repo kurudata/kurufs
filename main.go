@@ -20,6 +20,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 
+	_ "github.com/juicedata/juicefs/object"
 	"github.com/juicedata/juicefs/utils"
 	"github.com/urfave/cli/v2"
 )
