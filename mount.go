@@ -119,7 +119,10 @@ func mount(c *cli.Context) error {
 		CacheFullBlock: !c.Bool("partialOnly"),
 		AutoCreate:     true,
 	}
-	blob := createStorage(format)
+	blob, err := createStorage(format)
+	if err != nil {
+		logger.Fatalf("object storage: %s", err)
+	}
 	logger.Infof("Data use %s", blob)
 	logger.Infof("mount volume %s at %s", format.Volume, mp)
 

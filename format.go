@@ -50,10 +50,10 @@ func fixObjectSize(s int) int {
 	return s
 }
 
-func createStorage(fmt *meta.Format) object.ObjectStorage {
-	blob := object.CreateStorage(strings.ToLower(fmt.Storage), fmt.Bucket, fmt.AccessKey, fmt.SecretKey)
-	if blob == nil {
-		logger.Fatalf("Invalid storage type: %s", fmt.Storage)
+func createStorage(fmt *meta.Format) (object.ObjectStorage, error) {
+	blob, err := object.CreateStorage(strings.ToLower(fmt.Storage), fmt.Bucket, fmt.AccessKey, fmt.SecretKey)
+	if err != nil {
+		return nil, err
 	}
 	return object.WithPrefix(blob, fmt.Volume+"/")
 }
@@ -159,7 +159,10 @@ func format(c *cli.Context) error {
 	}
 
 	object.UserAgent = "JuiceFS-CE-" + Build()
-	blob := createStorage(&format)
+	blob, err := createStorage(&format)
+	if err != nil {
+		logger.Fatalf("object storage: %s", err)
+	}
 	logger.Infof("Data uses %s", blob)
 	if err := test(blob); err != nil {
 		logger.Fatalf("Storage %s is not configured correctly: %s", blob, err)
