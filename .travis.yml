@@ -16,9 +16,9 @@ install: true
 before_script:
   - export GO111MODULE=on
   - make
-  - go test ./...
   - sudo make -C fstests setup
 script:
+  - go test ./pkg/...
   - sudo DURATION=${DURATION} make -C fstests ${TEST_SUITE}
   - make -C fstests flock
 after_failure:
