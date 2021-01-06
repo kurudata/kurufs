@@ -1,8 +1,8 @@
 <p align="center"><a href="https://github.com/juicedata/juicefs"><img alt="JuiceFS Logo" src="https://github.com/juicedata/juicefs/raw/main/docs/images/juicefs-logo.png" width="50%" /></a></p>
 <p align="center">
-    <a href="https://travis-ci.com/juicedata/juicefs" target="_blank"><img alt="Build Status" src="https://travis-ci.com/juicedata/juicefs.svg?token=jKSPwswpc2ph4uMtwpHa&branch=main" /></a>
-    <a href="https://goreportcard.com/report/github.com/juicedata/juicefs/pkg" target="_blank"><img alt="Go Report Card" src="https://goreportcard.com/badge/github.com/juicedata/juicefs/pkg" /></a>
-    <a href="https://join.slack.com/t/juicefs/shared_invite/zt-kjbre7de-K8jeTMouDZE8nKEZVHLAMQ" target="_blank"><img alt="Join Slack" src="https://badgen.net/badge/Slack/Join%20JuiceFS/0abd59?icon=slack" /></a>
+    <a href="https://travis-ci.com/juicedata/juicefs"><img alt="Build Status" src="https://travis-ci.com/juicedata/juicefs.svg?token=jKSPwswpc2ph4uMtwpHa&branch=main" /></a>
+    <a href="https://goreportcard.com/report/github.com/juicedata/juicefs/pkg"><img alt="Go Report Card" src="https://goreportcard.com/badge/github.com/juicedata/juicefs/pkg" /></a>
+    <a href="https://join.slack.com/t/juicefs/shared_invite/zt-kjbre7de-K8jeTMouDZE8nKEZVHLAMQ"><img alt="Join Slack" src="https://badgen.net/badge/Slack/Join%20JuiceFS/0abd59?icon=slack" /></a>
 </p>
 
 **JuiceFS** is an open-sourced POSIX filesystem built on top of [Redis](https://redis.io) and object storage (e.g. Amazon S3), designed and optimized for cloud native environment. By using the widely adopted Redis and S3 as the persistent storage, JuiceFS serves as a stateless middleware to enable many applications to share data easily.
@@ -25,7 +25,7 @@ The highlighted features are:
 
 ## Architecture
 
-![JuiceFS Architecture](https://github.com/juicedata/juicefs/raw/main/docs/images/juicefs-arch.png)
+![JuiceFS Architecture](docs/images/juicefs-arch.png)
 
 JuiceFS rely on Redis to store filesystem metadata. Redis is a fast, open-source, in-memory key-value data store and very suitable for store the metadata.
 
@@ -123,7 +123,7 @@ We use [GitHub Issues](https://github.com/juicedata/juicefs/issues) to track com
 
 ## Contributing
 
-Thank you for your contribution! Please refer to the [CONTRIBUTING.md](https://github.com/juicedata/juicefs/pkg/blob/main/CONTRIBUTING.md) for more information.
+Thank you for your contribution! Please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) for more information.
 
 
 ## Community
@@ -132,13 +132,13 @@ Welcome to join our [Slack channel](https://join.slack.com/t/juicefs/shared_invi
 
 ## Usage Tracking
 
-JuiceFS by default collects **anonymous** usage data. It only collects core metrics (e.g. inode number), no user or any sensitive data will be collected. You could review related code [here](https://github.com/juicedata/juicefs/blob/main/redis/xxx.go).
+JuiceFS by default collects **anonymous** usage data. It only collects core metrics (e.g. inode number), no user or any sensitive data will be collected. You could review related code [here](pkg/xxx.go).
 
 These data helps [JuiceFS team](https://github.com/orgs/juicedata/people) to understand how the community is using this project. You could disable this feature easily, just follow steps below.
 
 ## License
 
-JuiceFS is open-sourced under GNU AGPL v3.0, see [LICENSE](https://github.com/juicedata/juicefs/blob/main/LICENSE).
+JuiceFS is open-sourced under GNU AGPL v3.0, see [LICENSE](LICENSE).
 
 ## Credits
 
