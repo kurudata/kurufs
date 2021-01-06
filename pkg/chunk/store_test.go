@@ -77,13 +77,13 @@ var defaultConf = Config{
 }
 
 func TestCachedStore(t *testing.T) {
-	mem := object.CreateStorage("mem", "", "", "")
+	mem, _ := object.CreateStorage("mem", "", "", "")
 	store := NewCachedStore(mem, defaultConf)
 	testStore(t, store)
 }
 
 func TestUncompressedStore(t *testing.T) {
-	mem := object.CreateStorage("mem", "", "", "")
+	mem, _ := object.CreateStorage("mem", "", "", "")
 	conf := defaultConf
 	conf.Compress = ""
 	conf.CacheSize = 0
@@ -92,7 +92,7 @@ func TestUncompressedStore(t *testing.T) {
 }
 
 func TestAsyncStore(t *testing.T) {
-	mem := object.CreateStorage("mem", "", "", "")
+	mem, _ := object.CreateStorage("mem", "", "", "")
 	conf := defaultConf
 	conf.CacheDir = "/tmp/testdirAsync"
 	p := filepath.Join(conf.CacheDir, stagingDir, "chunks/0/0/123_0")

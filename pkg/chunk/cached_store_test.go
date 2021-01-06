@@ -24,7 +24,7 @@ import (
 )
 
 func BenchmarkCachedRead(b *testing.B) {
-	blob := object.CreateStorage("mem", "", "", "")
+	blob, _ := object.CreateStorage("mem", "", "", "")
 	config := defaultConf
 	config.PageSize = 4 << 20
 	store := NewCachedStore(blob, config)
@@ -45,7 +45,7 @@ func BenchmarkCachedRead(b *testing.B) {
 }
 
 func BenchmarkUncachedRead(b *testing.B) {
-	blob := object.CreateStorage("mem", "", "", "")
+	blob, _ := object.CreateStorage("mem", "", "", "")
 	config := defaultConf
 	config.PageSize = 4 << 20
 	config.CacheSize = 0
