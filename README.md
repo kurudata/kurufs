@@ -5,56 +5,70 @@
     <a href="https://join.slack.com/t/juicefs/shared_invite/zt-kjbre7de-K8jeTMouDZE8nKEZVHLAMQ" target="_blank"><img alt="Join Slack" src="https://badgen.net/badge/Slack/Join%20JuiceFS/0abd59?icon=slack" /></a>
 </p>
 
-**JuiceFS** is an open-sourced POSIX file system built on top of [Redis](https://redis.io) and object storage (e.g. Amazon S3),
-designed and optimized for cloud-native enviroment. By using the widely adopted Redis and S3 as the persistent storage,
-JuiceFS serves as a stateless middleware to enable many application to share data easily.
+**JuiceFS** is an open-sourced POSIX filesystem built on top of [Redis](https://redis.io) and object storage (e.g. Amazon S3), designed and optimized for cloud native environment. By using the widely adopted Redis and S3 as the persistent storage, JuiceFS serves as a stateless middleware to enable many applications to share data easily.
 
 The highlighted features are:
 
-- **Fully POSIX compatible**:   pass all tests in pjdfstest
-- **Global file locks**
-- **Data compression**
+- **Fully POSIX-compatible**: JuiceFS is a fully POSIX-compatible filesystem. Existing applications can work with it without any changes. See [pjdfstest result](#posix-compatibility) below.
+- **Strong Consistency**: All confirmed changes made to your data will be reflected in different machines immediately.
+- **Outstanding Performance**: The latency can be as low as a few microseconds and the throughput can be expanded to nearly unlimited. See [benchmark result](#performance) below.
+- **Cloud Native**: By utilize cloud object storage, you could scaling storage and compute independently, a.k.a. disaggregated storage and compute architecture.
+- **Sharing**: JuiceFS is a shared file storage can be read and write by many clients.
+- **Global File Locks**: JuiceFS supports both BSD locks (flock) and POSIX record locks (fcntl).
+- **Data Compression**: By default JuiceFS use [LZ4](https://lz4.github.io/lz4) to compress all your data, you could also use [Zstandard](https://facebook.github.io/zstd) instead.
 
 ---
 
-[Architecture](#architecture) | [Getting Started](#getting-started) | [Benchmark](#benchmark) | [Supported Object Storage](#supported-object-storage) | [FAQ](#faq) | [Roadmap](#roadmap) | [Reporting Issues](#reporting-issues) | [Contributing](#contributing) | [Community](#community) | [Usage Tracking](#usage-tracking) | [License](#license) | [Credits](#credits)
+[Architecture](#architecture) | [Getting Started](#getting-started) | [Benchmark](#benchmark) | [Supported Object Storage](#supported-object-storage) | [FAQ](#faq) | [Status](#status) | [Roadmap](#roadmap) | [Reporting Issues](#reporting-issues) | [Contributing](#contributing) | [Community](#community) | [Usage Tracking](#usage-tracking) | [License](#license) | [Credits](#credits)
 
 ---
 
 ## Architecture
 
-Add a dialog here
+![JuiceFS Architecture](https://github.com/juicedata/juicefs/raw/main/docs/images/juicefs-arch.png)
+
+JuiceFS rely on Redis to store filesystem metadata. Redis is a fast, open-source, in-memory key-value data store and very suitable for store the metadata.
+
 ## Getting Started
 
 ### Precompiled binaries
 
+You can download precompiled binaries from [releases page](https://github.com/juicedata/juicefs/releases).
+
 ### Building from source
 
-```
-git clone github.com:juicedata/juicefs/pkg.git
-make
-```
-## Dependency
+You need install [Go](https://golang.org) first, then run following commands:
 
-A Redis server (>=2.2) or service is needed for metadata, please follow [Redis Quick Start](https://redis.io/topics/quickstart).
-
-There are many options for object storage, local disk is the easist one to get started.
-
-## Format
-
-```
-./juicefs format test
+```bash
+$ git clone git@github.com:juicedata/juicefs.git
+$ make
 ```
 
-## Mount
+### Dependency
 
+A Redis server (>= 2.2) is needed for metadata, please follow [Redis Quick Start](https://redis.io/topics/quickstart).
+
+If you use macOS, you also need install FUSE for macOS 3.x. The latest version is [3.11.2](https://osxfuse.github.io/2020/10/05/OSXFUSE-3.11.2.html).
+
+The last one you need is object storage. There are many options for object storage, local disk is the easiest one to getting started.
+
+### Format
+
+```bash
+$ ./juicefs format test
 ```
-./juicefs mount ~/jfs
+
+### Mount
+
+```bash
+$ ./juicefs mount ~/jfs
 ```
 
 ## Benchmark
 
-Added the chart here
+### POSIX-compatibility
+
+### Performance
 
 ## Supported Object Storage
 
@@ -63,9 +77,9 @@ Added the chart here
 - Azure Blob Storage
 - Alibaba Cloud Object Storage Service (OSS)
 - Tencent Cloud Object Storage (COS)
-- Local disk
 - Ceph RGW
-- Minio
+- MinIO
+- Local disk
 - Redis
 
 For the detailed list, see [juicesync](https://github.com/juicedata/juicesync).
@@ -78,22 +92,21 @@ JuiceFS already supported many object storage, please check [the list](#supporte
 
 ### Can I use Redis cluster?
 
-The simple answer is no. JuiceFS use [transaction](https://redis.io/topics/transactions) to guarantee the atomicy of meta opearations, which is not well supported in cluster mode.
+The simple answer is no. JuiceFS use [transaction](https://redis.io/topics/transactions) to guarantee the atomicity of metadata operations, which is not well supported in cluster mode.
 
 ## Status
 
-It's considered as beta quality, the storage format is not stablized yet, it's not recommended to deploy it into production.
-Please test it with your use cases and give us feedback.
+It's considered as beta quality, the storage format is not stabilized yet. It's not recommended to deploy it into production environment. Please test it with your use cases and give us feedback.
 
 ## Roadmap
 
-- Kubernetes CSI plugin
-- Stablize storage format
+- Kubernetes CSI driver
+- Stabilize storage format
 - Hadoop SDK
 - S3 gateway
 - Windows client
 - Encryption at rest
-- Other Databases for Meta
+- Other databases for metadata
 
 
 ## Reporting Issues
@@ -121,5 +134,4 @@ JuiceFS is open-sourced under GNU AGPL v3.0, see [LICENSE](https://github.com/ju
 
 ## Credits
 
-Design of JuiceFS was inspired from [Google File System](https://research.google.com/archive/gfs-sosp2003.pdf),
-[HDFS](https://hadoop.apache.org/) and [MooseFS](https://moosefs.com/), thanks to their great work.
+The design of JuiceFS was inspired by [Google File System](https://research.google/pubs/pub51), [HDFS](https://hadoop.apache.org) and [MooseFS](https://moosefs.com), thanks to their great work.
