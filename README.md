@@ -70,6 +70,14 @@ $ ./juicefs mount ~/jfs
 
 ### Performance
 
+#### Throughput
+
+Perform a performance benchmark comparison on JuiceFS, [EFS](https://aws.amazon.com/efs/), and [S3FS](https://github.com/s3fs-fuse/s3fs-fuse) by [fio](https://github.com/axboe/fio). Read [more details](benchmarks/fio.md).
+
+<img src="docs/images/sequential-read-write-benchmark.svg">
+
+
+
 ## Supported Object Storage
 
 - Amazon S3
