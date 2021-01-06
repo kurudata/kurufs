@@ -1,6 +1,6 @@
-<p align="center"><a href="https://github.com/juicedata/juicefs/pkg"><img alt="JuiceFS Logo" src="https://github.com/juicedata/juicefs/pkg/raw/main/docs/images/juicefs-logo.png" width="50%" /></a></p>
+<p align="center"><a href="https://github.com/juicedata/juicefs"><img alt="JuiceFS Logo" src="https://github.com/juicedata/juicefs/raw/main/docs/images/juicefs-logo.png" width="50%" /></a></p>
 <p align="center">
-    <a href="https://travis-ci.com/juicedata/juicefs/pkg" target="_blank"><img alt="Build Status" src="https://travis-ci.com/juicedata/juicefs/pkg.svg?token=jKSPwswpc2ph4uMtwpHa&branch=main" /></a>
+    <a href="https://travis-ci.com/juicedata/juicefs" target="_blank"><img alt="Build Status" src="https://travis-ci.com/juicedata/juicefs.svg?token=jKSPwswpc2ph4uMtwpHa&branch=main" /></a>
     <a href="https://goreportcard.com/report/github.com/juicedata/juicefs/pkg" target="_blank"><img alt="Go Report Card" src="https://goreportcard.com/badge/github.com/juicedata/juicefs/pkg" /></a>
     <a href="https://join.slack.com/t/juicefs/shared_invite/zt-kjbre7de-K8jeTMouDZE8nKEZVHLAMQ" target="_blank"><img alt="Join Slack" src="https://badgen.net/badge/Slack/Join%20JuiceFS/0abd59?icon=slack" /></a>
 </p>
