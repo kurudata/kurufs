@@ -16,7 +16,7 @@
 package fuse
 
 import (
-	"github.com/juicedata/juicefs/meta"
+	"github.com/juicedata/juicefs/pkg/meta"
 
 	"github.com/hanwen/go-fuse/v2/fuse"
 )

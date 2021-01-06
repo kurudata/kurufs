@@ -20,7 +20,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/juicedata/juicefs/meta"
+	"github.com/juicedata/juicefs/pkg/meta"
 )
 
 func strerr(errno syscall.Errno) string {

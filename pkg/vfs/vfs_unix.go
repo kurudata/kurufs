@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"syscall"
 
-	"github.com/juicedata/juicefs/meta"
+	"github.com/juicedata/juicefs/pkg/meta"
 
 	"golang.org/x/sys/unix"
 )

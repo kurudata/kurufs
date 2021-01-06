@@ -21,7 +21,7 @@ import (
 	"runtime"
 	"sync/atomic"
 
-	"github.com/juicedata/juicefs/utils"
+	"github.com/juicedata/juicefs/pkg/utils"
 )
 
 // Page is a page with refcount

@@ -19,7 +19,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/juicedata/juicefs/meta"
+	"github.com/juicedata/juicefs/pkg/meta"
 )
 
 const (

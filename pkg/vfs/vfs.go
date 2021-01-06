@@ -20,9 +20,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/juicedata/juicefs/chunk"
-	"github.com/juicedata/juicefs/meta"
-	"github.com/juicedata/juicefs/utils"
+	"github.com/juicedata/juicefs/pkg/chunk"
+	"github.com/juicedata/juicefs/pkg/meta"
+	"github.com/juicedata/juicefs/pkg/utils"
 )
 
 type Ino = meta.Ino

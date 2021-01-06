@@ -23,9 +23,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/juicedata/juicefs/meta"
-	"github.com/juicedata/juicefs/utils"
-	"github.com/juicedata/juicefs/vfs"
+	"github.com/juicedata/juicefs/pkg/meta"
+	"github.com/juicedata/juicefs/pkg/utils"
+	"github.com/juicedata/juicefs/pkg/vfs"
 
 	"github.com/hanwen/go-fuse/v2/fuse"
 )

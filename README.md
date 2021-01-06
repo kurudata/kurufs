@@ -1,7 +1,7 @@
-<p align="center"><a href="https://github.com/juicedata/juicefs"><img alt="JuiceFS Logo" src="https://github.com/juicedata/juicefs/raw/main/docs/images/juicefs-logo.png" width="50%" /></a></p>
+<p align="center"><a href="https://github.com/juicedata/juicefs/pkg"><img alt="JuiceFS Logo" src="https://github.com/juicedata/juicefs/pkg/raw/main/docs/images/juicefs-logo.png" width="50%" /></a></p>
 <p align="center">
-    <a href="https://travis-ci.com/juicedata/juicefs" target="_blank"><img alt="Build Status" src="https://travis-ci.com/juicedata/juicefs.svg?token=jKSPwswpc2ph4uMtwpHa&branch=main" /></a>
-    <a href="https://goreportcard.com/report/github.com/juicedata/juicefs" target="_blank"><img alt="Go Report Card" src="https://goreportcard.com/badge/github.com/juicedata/juicefs" /></a>
+    <a href="https://travis-ci.com/juicedata/juicefs/pkg" target="_blank"><img alt="Build Status" src="https://travis-ci.com/juicedata/juicefs/pkg.svg?token=jKSPwswpc2ph4uMtwpHa&branch=main" /></a>
+    <a href="https://goreportcard.com/report/github.com/juicedata/juicefs/pkg" target="_blank"><img alt="Go Report Card" src="https://goreportcard.com/badge/github.com/juicedata/juicefs/pkg" /></a>
     <a href="https://join.slack.com/t/juicefs/shared_invite/zt-kjbre7de-K8jeTMouDZE8nKEZVHLAMQ" target="_blank"><img alt="Join Slack" src="https://badgen.net/badge/Slack/Join%20JuiceFS/0abd59?icon=slack" /></a>
 </p>
 
@@ -31,7 +31,7 @@ Add a dialog here
 ### Building from source
 
 ```
-git clone github.com:juicedata/juicefs.git
+git clone github.com:juicedata/juicefs/pkg.git
 make
 ```
 ## Dependency
@@ -102,9 +102,8 @@ We use [GitHub Issues](https://github.com/juicedata/juicefs/issues) to track com
 
 ## Contributing
 
-Thank you for your contribution! Please refer to the [CONTRIBUTING.md](https://github.com/juicedata/juicefs/blob/main/CONTRIBUTING.md) for more information.
+Thank you for your contribution! Please refer to the [CONTRIBUTING.md](https://github.com/juicedata/juicefs/pkg/blob/main/CONTRIBUTING.md) for more information.
 
-Please note that this project is released with a [Contributor Code of Conduct](https://github.com/juicedata/juicefs/blob/main/CODE_OF_CONDUCT.md). By participating in this project, you agree to abide by its terms.
 
 ## Community
 
@@ -112,7 +111,7 @@ Welcome to join our [Slack channel](https://join.slack.com/t/juicefs/shared_invi
 
 ## Usage Tracking
 
-JuiceFS by default collects **anonymous** usage data. It only collects core metrics (e.g. inode number), no user or any sensitive data will be collected. You could review related code [here](https://github.com/juicedata/juicefs/blob/main/xxx.go).
+JuiceFS by default collects **anonymous** usage data. It only collects core metrics (e.g. inode number), no user or any sensitive data will be collected. You could review related code [here](https://github.com/juicedata/juicefs/blob/main/redis/xxx.go).
 
 These data helps [JuiceFS team](https://github.com/orgs/juicedata/people) to understand how the community is using this project. You could disable this feature easily, just follow steps below.
 

@@ -28,7 +28,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/juicedata/juicefs/utils"
+	"github.com/juicedata/juicefs/pkg/utils"
 
 	"github.com/juicedata/juicesync/object"
 )
