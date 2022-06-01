@@ -66,6 +66,7 @@ type DumpedAttr struct {
 	Nlink     uint32 `json:"nlink"`
 	Length    uint64 `json:"length"`
 	Rdev      uint32 `json:"rdev,omitempty"`
+	Parent    Ino    `json:"parent,omitempty"`
 }
 
 type DumpedSlice struct {
@@ -168,7 +169,11 @@ func (de *DumpedEntry) writeJSON(bw *bufio.Writer, depth int) error {
 			panic(err)
 		}
 	}
-	write(fmt.Sprintf("\n%s\"%s\": {", prefix, escape(de.Name)))
+	if len(de.Name) > 0 {
+		write(fmt.Sprintf("\n%s\"%s\": {", prefix, escape(de.Name)))
+	} else {
+		write(fmt.Sprintf("\n%s{", prefix))
+	}
 	data, err := json.Marshal(de.Attr)
 	if err != nil {
 		return err
@@ -204,6 +209,18 @@ func (de *DumpedEntry) writeJSON(bw *bufio.Writer, depth int) error {
 			}
 		}
 		write(fmt.Sprintf("\n%s]", fieldPrefix))
+	}
+	if len(de.Entries) > 0 && len(de.Name) == 0 {
+		write(fmt.Sprintf(",\n%s\"entries\": {", fieldPrefix))
+		var i int
+		for n, e := range de.Entries {
+			write(fmt.Sprintf("\n%s  \"%s\": {\"attr\": {\"inode\":%d, \"type\": \"%s\"}}", fieldPrefix, escape(n), e.Attr.Inode, e.Attr.Type))
+			if i < len(de.Entries)-1 {
+				write(",")
+			}
+			i++
+		}
+		write(fmt.Sprintf("\n%s}", strings.Repeat(jsonIndent, depth+1)))
 	}
 	write(fmt.Sprintf("\n%s}", prefix))
 	return nil
@@ -274,6 +291,7 @@ func dumpAttr(a *Attr) *DumpedAttr {
 		Ctimensec: a.Ctimensec,
 		Nlink:     a.Nlink,
 		Rdev:      a.Rdev,
+		Parent:    a.Parent,
 	}
 	if a.Typ == TypeFile {
 		d.Length = a.Length
