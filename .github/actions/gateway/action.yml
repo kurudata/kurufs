@@ -102,13 +102,13 @@ runs:
         if [[ "$meta_url" == badger* ]]; then
           ./juicefs gateway $meta_url localhost:8080 --no-usage-report --access-log /tmp/access1.log&
         else
-          #./juicefs gateway $meta_url localhost:8080 --no-usage-report --access-log /tmp/access1.log &
-          ./juicefs gateway $meta_url localhost:9000 --no-usage-report --access-log /tmp/access1.log &
-          ./juicefs gateway $meta_url localhost:9001 --no-usage-report --access-log /tmp/access2.log &
-          ./juicefs gateway $meta_url localhost:9002 --no-usage-report --access-log /tmp/access3.log &
-          sudo cp .github/workflows/resources/load-balancer.conf /etc/nginx/conf.d/load-balancer.conf
-          sudo rm /etc/nginx/sites-enabled/default
-          sudo systemctl restart nginx
+          ./juicefs gateway $meta_url localhost:8080 --no-usage-report --access-log /tmp/access1.log &
+          # ./juicefs gateway $meta_url localhost:9000 --no-usage-report --access-log /tmp/access1.log &
+          # ./juicefs gateway $meta_url localhost:9001 --no-usage-report --access-log /tmp/access2.log &
+          # ./juicefs gateway $meta_url localhost:9002 --no-usage-report --access-log /tmp/access3.log &
+          # sudo cp .github/workflows/resources/load-balancer.conf /etc/nginx/conf.d/load-balancer.conf
+          # sudo rm /etc/nginx/sites-enabled/default
+          # sudo systemctl restart nginx
         fi
         set -x 
         dd if=/dev/urandom of=file iflag=fullblock,count_bytes bs=4k count="$file_size" > /dev/null
