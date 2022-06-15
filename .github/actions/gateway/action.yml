@@ -125,13 +125,20 @@ runs:
           cp file data/file$i
         done
         start=`date +%s`
+        declare -a pids   
         ./juicefs sync --dirs data/  s3://minioadmin:minioadmin@localhost:8080/$volume/data/ --no-https -p $threads &
+        pids+=($!)
         ./juicefs sync --dirs data/  s3://minioadmin:minioadmin@localhost:8080/$volume/data/ --no-https -p $threads &
+        pids+=($!)
         ./juicefs sync --dirs data/  s3://minioadmin:minioadmin@localhost:8080/$volume/data/ --no-https -p $threads &
+        pids+=($!)
         ./juicefs sync --dirs data/  s3://minioadmin:minioadmin@localhost:8080/$volume/data2/ --no-https -p $threads &
+        pids+=($!)
         ./juicefs sync --dirs data/  s3://minioadmin:minioadmin@localhost:8080/$volume/data2/ --no-https -p $threads &
+        pids+=($!)
         ./juicefs sync --dirs data/  s3://minioadmin:minioadmin@localhost:8080/$volume/data2/ --no-https -p $threads &
-        wait
+        pids+=($!)
+        wait "${pids[@]}"
         rm -rf $HOME/.juicefs/cache/ || true
         # ./mc alias set minio http://localhost:9000 minioadmin minioadmin --api S3v4
         # ./mc mb minio/$volume
@@ -149,19 +156,26 @@ runs:
 
     - name: Sync with empty dir
       run: |
+        set -x
         meta_url=${{inputs.meta_url}}
         threads=${{inputs.threads}}
         mp=${{inputs.mount_point}}
         volume=${{inputs.volume_name}}
         export MINIO_ROOT_USER=minioadmin
         export MINIO_ROOT_PASSWORD=minioadmin
+        ./juicefs mount -d $meta_url $mp
+        ./juicefs mdtest $meta_url test --dirs 10 --depth 3 --files 100 --threads 10
         ./juicefs gateway $meta_url localhost:8080 --access-log /tmp/access1.log &
         sleep 10
         mkdir emptydir
+        declare -a pids  
         ./juicefs sync emptydir/ s3://minioadmin:minioadmin@localhost:8080/$volume/data/ --delete-dst --no-https -p $threads &
+        pids+=($!)
         ./juicefs sync emptydir/ s3://minioadmin:minioadmin@localhost:8080/$volume/data/ --delete-dst --no-https -p $threads &
+        pids+=($!)
         ./juicefs sync emptydir/ s3://minioadmin:minioadmin@localhost:8080/$volume/data/ --delete-dst --no-https -p $threads &
-        wait
+        pids+=($!)
+        wait "${pids[@]}"
         killall juicefs
         ./juicefs mount -d $meta_url $mp
         diff -ur emptydir/ $mp/data/ 
