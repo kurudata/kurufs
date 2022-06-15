@@ -172,7 +172,7 @@ runs:
         wait "${pids[@]}"
         killall juicefs
         ./juicefs mount -d $meta_url $mp
-        diff -ur emptydir/ $mp/test/ 
+        [ -d "$mp/test/" ] && exit 1 
         ./juicefs umount  $mp --force
       shell: bash
 
@@ -181,21 +181,16 @@ runs:
         meta_url=${{inputs.meta_url}}
         mp=${{inputs.mount_point}}
         ./juicefs mount -d $meta_url $mp
-        ./juicefs mdtest $meta_url test2 --dirs 10 --depth 2 --files 10 --threads 10 --no-usage-report
+        ./juicefs mdtest $meta_url test --dirs 10 --depth 2 --files 10 --threads 10 --no-usage-report
         declare -a pids  
-        ./juicefs rmr $mp/test2/ &
+        ./juicefs rmr $mp/test/ &
         pids+=($!)
-        ./juicefs rmr $mp/test2/ &
+        ./juicefs rmr $mp/test/ &
         pids+=($!)
-        ./juicefs rmr $mp/test2/ &
+        ./juicefs rmr $mp/test/ &
         pids+=($!)
         wait "${pids[@]}"
-        if [ -z "$(ls -A $mp/test2/)" ]; then
-          echo "Empty"
-        else
-          echo "Not Empty"
-          exit 1
-        fi
+        [ -d "$mp/test/" ] && exit 1 
         ./juicefs umount  $mp --force
 
       shell: bash
