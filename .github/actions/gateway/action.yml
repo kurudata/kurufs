@@ -153,6 +153,8 @@ runs:
         threads=${{inputs.threads}}
         mp=${{inputs.mount_point}}
         volume=${{inputs.volume_name}}
+        export MINIO_ROOT_USER=minioadmin
+        export MINIO_ROOT_PASSWORD=minioadmin
         ./juicefs gateway $meta_url localhost:8080 --access-log /tmp/access1.log &
         mkdir emptydir
         ./juicefs sync emptydir/ s3://minioadmin:minioadmin@localhost:8080/$volume/data/ --delete-dst --no-https -p $threads &
