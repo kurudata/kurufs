@@ -67,8 +67,9 @@ runs:
         test -d /var/jfs/$volume && rm -rf /var/jfs/$volume || true
         echo finished
       shell: bash
+
     - name: create database
-      run:| 
+      run: | 
         meta_url=${{inputs.meta_url}}
         isolation_level="${{inputs.isolation_level}}"
         db_name=$(basename $meta_url | awk -F? '{print $1}')
