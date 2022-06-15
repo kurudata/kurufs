@@ -128,6 +128,9 @@ runs:
         ./juicefs sync --dirs data/  s3://minioadmin:minioadmin@localhost:8080/$volume/data/ --no-https -p $threads &
         ./juicefs sync --dirs data/  s3://minioadmin:minioadmin@localhost:8080/$volume/data/ --no-https -p $threads &
         ./juicefs sync --dirs data/  s3://minioadmin:minioadmin@localhost:8080/$volume/data/ --no-https -p $threads &
+        ./juicefs sync --dirs data/  s3://minioadmin:minioadmin@localhost:8080/$volume/data2/ --no-https -p $threads &
+        ./juicefs sync --dirs data/  s3://minioadmin:minioadmin@localhost:8080/$volume/data2/ --no-https -p $threads &
+        ./juicefs sync --dirs data/  s3://minioadmin:minioadmin@localhost:8080/$volume/data2/ --no-https -p $threads &
         wait
         rm -rf $HOME/.juicefs/cache/ || true
         # ./mc alias set minio http://localhost:9000 minioadmin minioadmin --api S3v4
@@ -142,4 +145,42 @@ runs:
         diff -ur data/ $mp/data/ 
         echo "diff succeed"
         ./juicefs umount  $mp --force
+      shell: bash
+
+    - name: Sync with empty dir
+      run: |
+        meta_url=${{inputs.meta_url}}
+        threads=${{inputs.threads}}
+        mp=${{inputs.mount_point}}
+        volume=${{inputs.volume_name}}
+        ./juicefs gateway $meta_url localhost:8080 --access-log /tmp/access1.log &
+        mkdir emptydir
+        ./juicefs sync emptydir/ s3://minioadmin:minioadmin@localhost:8080/$volume/data/ --delete-dst --no-https -p $threads &
+        ./juicefs sync emptydir/ s3://minioadmin:minioadmin@localhost:8080/$volume/data/ --delete-dst --no-https -p $threads &
+        ./juicefs sync emptydir/ s3://minioadmin:minioadmin@localhost:8080/$volume/data/ --delete-dst --no-https -p $threads &
+        wait
+        killall juicefs
+        ./juicefs mount -d $meta_url $mp
+        diff -ur emptydir/ $mp/data/ 
+        ./juicefs umount  $mp --force
+      shell: bash
+
+    - name: cocurrent rmr
+      run: |
+        meta_url=${{inputs.meta_url}}
+        mp=${{inputs.mount_point}}
+        
+        ./juicefs mount -d $meta_url $mp
+        ./juicefs rmr $mp/data2/ &
+        ./juicefs rmr $mp/data2/ &
+        ./juicefs rmr $mp/data2/ &
+        wait 
+        if [ -z "$(ls -A $mp/data2/)" ]; then
+          echo "Empty"
+        else
+          echo "Not Empty"
+          exit 1
+        fi
+        ./juicefs umount  $mp --force
+
       shell: bash
