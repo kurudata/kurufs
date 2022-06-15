@@ -156,6 +156,7 @@ runs:
         export MINIO_ROOT_USER=minioadmin
         export MINIO_ROOT_PASSWORD=minioadmin
         ./juicefs gateway $meta_url localhost:8080 --access-log /tmp/access1.log &
+        sleep 10
         mkdir emptydir
         ./juicefs sync emptydir/ s3://minioadmin:minioadmin@localhost:8080/$volume/data/ --delete-dst --no-https -p $threads &
         ./juicefs sync emptydir/ s3://minioadmin:minioadmin@localhost:8080/$volume/data/ --delete-dst --no-https -p $threads &
