@@ -67,18 +67,10 @@ runs:
         test -d /var/jfs/$volume && rm -rf /var/jfs/$volume || true
         echo finished
       shell: bash
-
-    - name: Test
-      run: |
+    - name: create database
+      run:| 
         meta_url=${{inputs.meta_url}}
-        file_size=${{inputs.file_size}}
-        file_count=${{inputs.file_count}}
-        threads=${{inputs.threads}}
         isolation_level="${{inputs.isolation_level}}"
-        mp=${{inputs.mount_point}}
-        volume=${{inputs.volume_name}}
-        echo meta_url is: $meta_url, file_size is $file_size, file_count is $file_count, isolation_level is $isolation_level
-        
         db_name=$(basename $meta_url | awk -F? '{print $1}')
         if [[ "$meta_url" == mysql* ]]; then
           user=$(echo $meta_url |  awk -F/ '{print $3}' | awk -F@ '{print $1}' | awk -F: '{print $1}')
@@ -94,13 +86,19 @@ runs:
           export PGPASSWORD="postgres"
           printf "\set AUTOCOMMIT on\ndrop database if exists $db_name; create database $db_name; " |  psql -U postgres -h localhost
           printf "\set AUTOCOMMIT on\nALTER DATABASE $db_name SET DEFAULT_TRANSACTION_ISOLATION TO '$isolation_level';" |  psql -U postgres -h localhost
-        fi
-        
+        fi      
+      shell: bash
+
+    - name: start gateway
+      run: |
+        meta_url=${{inputs.meta_url}}
+        mp=${{inputs.mount_point}}
+        volume=${{inputs.volume_name}}
         export MINIO_ROOT_USER=minioadmin
         export MINIO_ROOT_PASSWORD=minioadmin
         ./juicefs format $meta_url $volume --trash-days 0
         if [[ "$meta_url" == badger* ]]; then
-          ./juicefs gateway $meta_url localhost:8080 --no-usage-report &
+          ./juicefs gateway $meta_url localhost:8080 --no-usage-report /tmp/access1.log &
         else
           ./juicefs gateway $meta_url localhost:8080 --access-log /tmp/access1.log &
           #./juicefs gateway $meta_url localhost:9000 --access-log /tmp/access1.log &
@@ -109,6 +107,16 @@ runs:
           #sudo rm /etc/nginx/sites-enabled/default
           #sudo systemctl restart nginx
         fi
+      shell: bash
+    - name: Sync
+      run: |
+        meta_url=${{inputs.meta_url}}
+        file_size=${{inputs.file_size}}
+        file_count=${{inputs.file_count}}
+        threads=${{inputs.threads}}
+        mp=${{inputs.mount_point}}
+        volume=${{inputs.volume_name}}
+        
         set -x 
         dd if=/dev/urandom of=file iflag=fullblock,count_bytes bs=4k count="$file_size" > /dev/null
         mkdir data
@@ -116,16 +124,10 @@ runs:
           cp file data/file$i
         done
         start=`date +%s`
-        declare -a pids        
         ./juicefs sync --dirs data/  s3://minioadmin:minioadmin@localhost:8080/$volume/data/ --no-https -p $threads &
-        pids+=($!)
         ./juicefs sync --dirs data/  s3://minioadmin:minioadmin@localhost:8080/$volume/data/ --no-https -p $threads &
-        pids+=($!)
         ./juicefs sync --dirs data/  s3://minioadmin:minioadmin@localhost:8080/$volume/data/ --no-https -p $threads &
-        pids+=($!)
-        wait "${pids[@]}"
-        # mkdir emptydir
-        # ./juicefs sync emptydir/ s3://minioadmin:minioadmin@localhost:8080/$volume/ --delete-dst --no-https -p $threads
+        wait
         rm -rf $HOME/.juicefs/cache/ || true
         # ./mc alias set minio http://localhost:9000 minioadmin minioadmin --api S3v4
         # ./mc mb minio/$volume
@@ -133,11 +135,10 @@ runs:
         end=`date +%s`
         time=$((end-start))
         echo time cost is: $time second
-        # stop juicefs gateway
         killall juicefs 
         sleep 3
         ./juicefs mount -d $meta_url $mp
         diff -ur data/ $mp/data/ 
         echo "diff succeed"
-        rm $mp/data/ -rf
+        ./juicefs umount  $mp --force
       shell: bash
