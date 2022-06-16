@@ -173,6 +173,7 @@ runs:
         pids+=($!)
         wait "${pids[@]}"
         killall juicefs
+        sleep 3
         ./juicefs mount -d $meta_url $mp
         [ -d "$mp/test/" ] && exit 1 
         ./juicefs umount  $mp --force
