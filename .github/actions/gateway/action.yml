@@ -160,7 +160,6 @@ runs:
         volume=${{inputs.volume_name}}
         export MINIO_ROOT_USER=minioadmin
         export MINIO_ROOT_PASSWORD=minioadmin
-        ./juicefs mount -d $meta_url $mp
         ./juicefs mdtest $meta_url test --dirs 10 --depth 2 --files 10 --threads 10 --no-usage-report
         ./juicefs gateway $meta_url localhost:8080 --access-log /tmp/access1.log &
         sleep 10
