@@ -54,6 +54,7 @@ runs:
       shell: bash
 
     - name: Init
+      shell: bash
       run: | 
         set -x
         mp=${{inputs.mount_point}}
@@ -66,9 +67,10 @@ runs:
         fi
         test -d /var/jfs/$volume && rm -rf /var/jfs/$volume || true
         echo finished
-      shell: bash
+      
 
     - name: create database
+      shell: bash
       run: | 
         meta_url=${{inputs.meta_url}}
         isolation_level="${{inputs.isolation_level}}"
@@ -88,9 +90,10 @@ runs:
           printf "\set AUTOCOMMIT on\ndrop database if exists $db_name; create database $db_name; " |  psql -U postgres -h localhost
           printf "\set AUTOCOMMIT on\nALTER DATABASE $db_name SET DEFAULT_TRANSACTION_ISOLATION TO '$isolation_level';" |  psql -U postgres -h localhost
         fi      
-      shell: bash
+      
 
     - name: start gateway
+      shell: bash
       run: |
         meta_url=${{inputs.meta_url}}
         mp=${{inputs.mount_point}}
@@ -108,9 +111,9 @@ runs:
           #sudo rm /etc/nginx/sites-enabled/default
           #sudo systemctl restart nginx
         fi
+      
+    - name: Sync with multiple process
       shell: bash
-
-    - name: Sync
       run: |
         meta_url=${{inputs.meta_url}}
         file_size=${{inputs.file_size}}
@@ -147,8 +150,7 @@ runs:
         diff -ur data/ $mp/data/ 
         echo "diff succeed"
         ./juicefs umount  $mp --force
-      shell: bash
-
+      
     - name: Sync with empty dir
       run: |
         set -x
@@ -183,14 +185,15 @@ runs:
         mp=${{inputs.mount_point}}
         ./juicefs mount -d $meta_url $mp
         ./juicefs mdtest $meta_url test2 --dirs 10 --depth 3 --files 30 --threads 10 --no-usage-report
-        declare -a pids  
-        ./juicefs rmr $mp/test2/ &
-        pids+=($!)
-        ./juicefs rmr $mp/test2/ &
-        pids+=($!)
-        ./juicefs rmr $mp/test2/ &
-        pids+=($!)
-        wait "${pids[@]}"
+        ./juicefs rmr $mp/test2/
+        # declare -a pids  
+        # ./juicefs rmr $mp/test2/ &
+        # pids+=($!)
+        # ./juicefs rmr $mp/test2/ &
+        # pids+=($!)
+        # ./juicefs rmr $mp/test2/ &
+        # pids+=($!)
+        # wait "${pids[@]}"
         [ -d "$mp/test2/" ] && exit 1 
         ./juicefs umount  $mp --force
 
