@@ -183,8 +183,8 @@ runs:
       run: |
         meta_url=${{inputs.meta_url}}
         mp=${{inputs.mount_point}}
-        ./juicefs mount -d $meta_url $mp
         ./juicefs mdtest $meta_url test2 --dirs 10 --depth 3 --files 30 --threads 10 --no-usage-report
+        ./juicefs mount -d $meta_url $mp
         ./juicefs rmr $mp/test2/
         # declare -a pids  
         # ./juicefs rmr $mp/test2/ &
