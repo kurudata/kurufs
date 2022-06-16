@@ -109,6 +109,7 @@ runs:
           #sudo systemctl restart nginx
         fi
       shell: bash
+
     - name: Sync
       run: |
         meta_url=${{inputs.meta_url}}
@@ -176,21 +177,21 @@ runs:
         ./juicefs umount  $mp --force
       shell: bash
 
-    - name: cocurrent rmr
+    - name: concurrent rmr
       run: |
         meta_url=${{inputs.meta_url}}
         mp=${{inputs.mount_point}}
         ./juicefs mount -d $meta_url $mp
-        ./juicefs mdtest $meta_url test --dirs 10 --depth 3 --files 30 --threads 10 --no-usage-report
+        ./juicefs mdtest $meta_url test2 --dirs 10 --depth 3 --files 30 --threads 10 --no-usage-report
         declare -a pids  
-        ./juicefs rmr $mp/test/ &
+        ./juicefs rmr $mp/test2/ &
         pids+=($!)
-        ./juicefs rmr $mp/test/ &
+        ./juicefs rmr $mp/test2/ &
         pids+=($!)
-        ./juicefs rmr $mp/test/ &
+        ./juicefs rmr $mp/test2/ &
         pids+=($!)
         wait "${pids[@]}"
-        [ -d "$mp/test/" ] && exit 1 
+        [ -d "$mp/test2/" ] && exit 1 
         ./juicefs umount  $mp --force
 
       shell: bash
