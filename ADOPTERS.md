@@ -6,7 +6,7 @@ For users of JuiceFS:
 | :---                                                                                    | :---        | :---                   |
 | [Xiaomi](https://www.mi.com)                                                            | Production  | AI                     |
 | [Li Auto Inc.](https://www.lixiang.com)                                                 | Production  | Big Data, AI           |
-| [Shopee](https://shopee.com)                                                            | Production  | Big Data               |
+| [Shopee](https://shopee.com)                                                            | Production  | Big Data ([Case Study](https://juicefs.com/blog/en/posts/shopee-clickhouse-with-juicefs/)) |
 | [Zhihu](https://www.zhihu.com)                                                          | Production  | Big Data               |
 | [Yaoxin Financing Re-Guarantee](https://www.yaoxinhd.com)                               | Production  | Big Data, File Sharing |
 | [Megvii](https://megvii.com)                                                            | Production  | AI                     |
@@ -21,6 +21,9 @@ For users of JuiceFS:
 | [vivo](https://www.vivo.com)                                                            | Production  | AI, File Sharing       |
 | [Horizon Robotics](https://horizon.ai)                                                  | Production  | AI                     |
 | [SenseTime](https://www.sensetime.com/en)                                               | Production  | File Sharing           |
+| [Joyient](http://www.joyient.com)                                                       | Prodcution  | File Sharing, 3D Rendering   |
+| [DJI](https://www.dji.com/)        | Production   | AI    |
+| [ChinaMobile Cloud](https://ecloud.he.chinamobile.com/)                                 | Testing     | Big Data               |
 | [Volcano Engine](https://www.volcengine.com)                                            | Testing     | File Sharing           |
 | [Dingdong Fresh](https://www.100.me)                                                    | Testing     | Big Data               |
 | [SF-Express](https://www.sf-express.com)                                                | Testing     | Big Data, File Sharing |
